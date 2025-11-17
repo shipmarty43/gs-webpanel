@@ -25,8 +25,15 @@ COPY . .
 # Create data directory
 RUN mkdir -p /app/data
 
+# Copy and set entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Expose port
 EXPOSE 8000
+
+# Set entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
 
 # Run application
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -12,9 +12,11 @@ Web-панель для централизованного управления 
 - **Функции**: Поддержка `-w` (wait for listener), `-i` (interactive PTY), `-t` (test connection)
 
 **Важные документы:**
+- `INITIALIZATION.md` - автоматическая инициализация БД и создание admin
 - `HOST_SETUP_GUIDE.md` - пошаговая инструкция настройки хостов
 - `GSOCKET_IMPLEMENTATION_ISSUES.md` - детальный анализ архитектуры
 - `CUSTOM_GSRN_GUIDE.md` - настройка кастомных GSRN серверов
+- `TROUBLESHOOTING_LOGIN.md` - решение проблем с входом
 - `app/services/gsocket_service_fixed.py` - альтернативная реализация через env variables
 
 ## Возможности
@@ -61,15 +63,26 @@ SECRET_KEY=your-secret-key-min-32-chars
 ENCRYPTION_KEY=your-encryption-key-32-bytes
 ```
 
-### 3. Установка зависимостей
-
-#### С использованием Docker (рекомендуется):
+### 3. Запуск с Docker (рекомендуется)
 
 ```bash
+# Запустить контейнеры
 docker-compose up -d
+
+# Дождаться инициализации (5-10 секунд)
+# БД и администратор создаются автоматически!
 ```
 
-#### Локальная установка:
+**Готово!** Панель доступна по адресу:
+- **URL**: http://localhost:8000/login
+- **Логин**: `admin`
+- **Пароль**: `Admin123456!`
+
+⚠️ **После первого входа смените пароль!**
+
+### 3. Локальная установка (без Docker)
+
+#### Установка зависимостей:
 
 ```bash
 # Создание виртуального окружения
@@ -80,53 +93,27 @@ source venv/bin/activate  # На Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Инициализация базы данных
+#### Инициализация базы данных:
 
 ```bash
-# С Docker
-docker-compose exec web python scripts/init_db.py
+# Создать базу данных
+python3 scripts/init_db.py
 
-# Локально
-python scripts/init_db.py
+# Создать администратора
+python3 scripts/create_test_admin.py
 ```
-
-### 5. Создание администратора
-
-```bash
-# С Docker
-docker-compose exec web python scripts/create_admin.py
-
-# Локально
-python scripts/create_admin.py
-```
-
-Следуйте инструкциям для создания пользователя.
-
-### 6. Запуск приложения
-
-#### С Docker:
-
-```bash
-docker-compose up -d
-```
-
-#### Локально:
 
 ```bash
 # Запуск web-сервера
-python app/main.py
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Запуск monitor service (в отдельном терминале)
-python app/services/monitor_service.py
+python -m app.services.monitor_service
 ```
 
-### 7. Доступ к панели
-
-Откройте браузер и перейдите по адресу:
-
-```
-http://localhost:8000
-```
+**Доступ к панели**: http://localhost:8000/login
+- Логин: `admin`
+- Пароль: `Admin123456!`
 
 Войдите используя созданные учетные данные.
 
