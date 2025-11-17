@@ -33,6 +33,11 @@ if [ ! -f "$DB_PATH" ]; then
 else
     echo "✓ Database exists"
 
+    # Run migrations for existing database
+    echo "→ Checking for database migrations..."
+    python3 scripts/migrate_db.py
+    echo ""
+
     # Check if there are any users
     USER_COUNT=$(python3 -c "
 from app.database import SessionLocal
