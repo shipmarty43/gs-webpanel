@@ -8,7 +8,7 @@ import uvicorn
 
 from app.config import settings
 from app.database import Base, engine
-from app.routes import auth, hosts, scripts, tasks, logs, reports, terminal
+from app.routes import auth, hosts, scripts, tasks, logs, reports, terminal, settings as settings_routes
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -45,6 +45,7 @@ app.include_router(tasks.router)
 app.include_router(logs.router)
 app.include_router(reports.router)
 app.include_router(terminal.router)
+app.include_router(settings_routes.router)
 
 
 # Health check
@@ -98,6 +99,12 @@ def login_page(request: Request):
 def terminal_page(request: Request, host_id: int):
     """Web terminal page"""
     return templates.TemplateResponse("terminal.html", {"request": request, "host_id": host_id})
+
+
+@app.get("/settings", response_class=HTMLResponse)
+def settings_page(request: Request):
+    """Settings management page"""
+    return templates.TemplateResponse("settings.html", {"request": request})
 
 
 if __name__ == "__main__":

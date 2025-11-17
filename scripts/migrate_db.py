@@ -10,6 +10,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from app.config import settings
 
 
+def table_exists(cursor, table_name):
+    """Check if a table exists"""
+    cursor.execute("""
+        SELECT name FROM sqlite_master
+        WHERE type='table' AND name=?
+    """, (table_name,))
+    return cursor.fetchone() is not None
+
+
 def column_exists(cursor, table_name, column_name):
     """Check if a column exists in a table"""
     cursor.execute(f"PRAGMA table_info({table_name})")
@@ -59,6 +68,33 @@ def migrate_database():
             migrations_applied += 1
         else:
             print("✓ Column 'custom_gsrn_server' already exists")
+
+        # Migration 2: Create settings table
+        if not table_exists(cursor, 'settings'):
+            print("→ Creating 'settings' table...")
+            cursor.execute("""
+                CREATE TABLE settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    key VARCHAR(100) UNIQUE NOT NULL,
+                    value TEXT NOT NULL,
+                    value_type VARCHAR(20) NOT NULL,
+                    category VARCHAR(50) NOT NULL,
+                    description TEXT
+                )
+            """)
+            cursor.execute("CREATE INDEX ix_settings_key ON settings(key)")
+            conn.commit()
+            print("✓ Table 'settings' created")
+            migrations_applied += 1
+
+            # Initialize default settings
+            print("→ Initializing default settings...")
+            import subprocess
+            subprocess.run([sys.executable, "scripts/init_settings.py"], check=True)
+            print("✓ Default settings initialized")
+
+        else:
+            print("✓ Table 'settings' already exists")
 
         # Future migrations can be added here
         # Example:

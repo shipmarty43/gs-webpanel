@@ -7,6 +7,7 @@ from app.models.host import Host
 from app.models.log import PingHistory
 from app.services.gsocket_service import gsocket_service
 from app.services.logger_service import logger_service
+from app.services.settings_service import settings_service
 from app.config import settings
 import logging
 
@@ -44,9 +45,10 @@ class MonitorService:
         start_time = time.time()
 
         try:
+            ping_timeout = settings_service.get('ping_timeout', settings.PING_TIMEOUT)
             is_online = await gsocket_service.check_host_availability(
                 secret=host.gsocket_secret,
-                timeout=settings.PING_TIMEOUT,
+                timeout=ping_timeout,
                 custom_gsrn_server=host.custom_gsrn_server
             )
 
@@ -87,7 +89,8 @@ class MonitorService:
     async def cleanup_old_records(db: Session):
         """Clean up old ping history records"""
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=settings.LOG_RETENTION_DAYS)
+            log_retention_days = settings_service.get('log_retention_days', settings.LOG_RETENTION_DAYS)
+            cutoff_date = datetime.utcnow() - timedelta(days=log_retention_days)
 
             # Delete old ping history
             deleted = db.query(PingHistory).filter(
@@ -95,7 +98,7 @@ class MonitorService:
             ).delete()
 
             db.commit()
-            logger.info(f"Cleaned up {deleted} old ping history records")
+            logger.info(f"Cleaned up {deleted} old ping history records (retention: {log_retention_days} days)")
 
         except Exception as e:
             logger.error(f"Error cleaning up old records: {e}")
@@ -118,8 +121,12 @@ class MonitorService:
             except Exception as e:
                 logger.error(f"Error in monitor loop: {e}")
 
+            # Get dynamic interval from settings
+            check_interval = settings_service.get('host_check_interval', settings.HOST_CHECK_INTERVAL)
+            logger.debug(f"Next check in {check_interval} seconds")
+
             # Wait for next check
-            await asyncio.sleep(settings.HOST_CHECK_INTERVAL)
+            await asyncio.sleep(check_interval)
 
 
 # Singleton instance

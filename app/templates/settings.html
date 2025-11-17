@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - C2 Panel{% endblock %}
+
+{% block content %}
+<div class="flex justify-between align-center mb-20">
+    <h1 class="card-title">Application Settings</h1>
+</div>
+
+<div id="error-message" class="error-message" style="display: none;"></div>
+<div id="success-message" class="success-message" style="display: none;"></div>
+
+<div class="card">
+    <h2 style="margin-bottom: 20px;">Monitoring Settings</h2>
+    <div id="monitoring-settings"></div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <h2 style="margin-bottom: 20px;">Task Execution Settings</h2>
+    <div id="task-settings"></div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <h2 style="margin-bottom: 20px;">GSocket Settings</h2>
+    <div id="gsocket-settings"></div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <h2 style="margin-bottom: 20px;">Maintenance Settings</h2>
+    <div id="maintenance-settings"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allSettings = {};
+
+async function loadSettings() {
+    try {
+        allSettings = await apiRequest('/api/settings');
+        displaySettings();
+    } catch (error) {
+        showError('Failed to load settings: ' + error.message);
+    }
+}
+
+function displaySettings() {
+    const categories = {
+        monitoring: document.getElementById('monitoring-settings'),
+        tasks: document.getElementById('task-settings'),
+        gsocket: document.getElementById('gsocket-settings'),
+        maintenance: document.getElementById('maintenance-settings')
+    };
+
+    // Clear all containers
+    Object.values(categories).forEach(container => {
+        container.innerHTML = '';
+    });
+
+    // Group settings by category
+    for (const [key, data] of Object.entries(allSettings)) {
+        const container = categories[data.category];
+        if (!container) continue;
+
+        const settingDiv = document.createElement('div');
+        settingDiv.className = 'form-group';
+        settingDiv.style.marginBottom = '15px';
+
+        settingDiv.innerHTML = `
+            <label class="form-label">${formatKey(key)}</label>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input
+                    type="${getInputType(data.value_type)}"
+                    id="setting-${key}"
+                    class="form-input"
+                    value="${data.value}"
+                    style="flex: 1;"
+                >
+                <button class="btn btn-small" onclick="updateSetting('${key}')">Save</button>
+            </div>
+            <small style="color: #8b949e; font-size: 12px; margin-top: 5px; display: block;">
+                ${data.description || ''}
+            </small>
+        `;
+
+        container.appendChild(settingDiv);
+    }
+}
+
+function formatKey(key) {
+    return key.split('_').map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+}
+
+function getInputType(valueType) {
+    if (valueType === 'int' || valueType === 'float') return 'number';
+    if (valueType === 'bool') return 'checkbox';
+    return 'text';
+}
+
+async function updateSetting(key) {
+    const input = document.getElementById(`setting-${key}`);
+    const setting = allSettings[key];
+
+    let value;
+    if (setting.value_type === 'bool') {
+        value = input.checked;
+    } else if (setting.value_type === 'int') {
+        value = parseInt(input.value);
+        if (isNaN(value)) {
+            showError('Invalid number');
+            return;
+        }
+    } else if (setting.value_type === 'float') {
+        value = parseFloat(input.value);
+        if (isNaN(value)) {
+            showError('Invalid number');
+            return;
+        }
+    } else {
+        value = input.value;
+    }
+
+    try {
+        const response = await apiRequest(`/api/settings/${key}`, {
+            method: 'PUT',
+            body: JSON.stringify({ value: value })
+        });
+
+        showSuccess(response.message);
+        loadSettings(); // Reload to get updated values
+    } catch (error) {
+        showError('Failed to update setting: ' + error.message);
+    }
+}
+
+loadSettings();
+</script>
+{% endblock %}

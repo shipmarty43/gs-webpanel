@@ -4,6 +4,7 @@ from app.models.host import Host
 from app.models.script import Script
 from app.models.task import Task, TaskExecution
 from app.models.log import Log, PingHistory
+from app.models.settings import Settings
 
 __all__ = [
     "User",
@@ -12,5 +13,6 @@ __all__ = [
     "Task",
     "TaskExecution",
     "Log",
-    "PingHistory"
+    "PingHistory",
+    "Settings"
 ]
