@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Hosts - C2 Panel{% endblock %}
+
+{% block content %}
+<div class="flex justify-between align-center mb-20">
+    <h1 class="card-title">Hosts Management</h1>
+    <button class="btn btn-primary" onclick="showAddHostModal()">+ Add Host</button>
+</div>
+
+<div id="error-message" class="error-message" style="display: none;"></div>
+<div id="success-message" class="success-message" style="display: none;"></div>
+
+<div class="card">
+    <div class="form-group mb-20">
+        <input type="text" class="form-input" id="search-input" placeholder="Search by hostname or IP..." onkeyup="filterHosts()">
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Status</th>
+                <th>Hostname</th>
+                <th>IP Address</th>
+                <th>Last Seen</th>
+                <th>Tags</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="hosts-tbody">
+            <tr><td colspan="6" class="text-center">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Host Modal -->
+<div id="add-host-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Add New Host</h2>
+            <button class="modal-close" onclick="closeAddHostModal()">&times;</button>
+        </div>
+        <form id="add-host-form" onsubmit="handleAddHost(event)">
+            <div class="form-group">
+                <label class="form-label">Hostname *</label>
+                <input type="text" class="form-input" id="hostname" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">IP Address</label>
+                <input type="text" class="form-input" id="ip_address">
+            </div>
+            <div class="form-group">
+                <label class="form-label">GSocket Secret *</label>
+                <input type="text" class="form-input" id="gsocket_secret" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="description" style="min-height: 100px;"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                <textarea class="form-textarea" id="notes" style="min-height: 100px;"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tags (comma-separated)</label>
+                <input type="text" class="form-input" id="tags" placeholder="prod, web, backend">
+            </div>
+            <button type="submit" class="btn btn-primary">Add Host</button>
+        </form>
+    </div>
+</div>
+
+<script>
+let allHosts = [];
+
+async function loadHosts() {
+    try {
+        allHosts = await apiRequest('/api/hosts');
+        displayHosts(allHosts);
+    } catch (error) {
+        showError('Failed to load hosts: ' + error.message);
+    }
+}
+
+function displayHosts(hosts) {
+    const tbody = document.getElementById('hosts-tbody');
+
+    if (hosts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hosts found</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = hosts.map(host => `
+        <tr>
+            <td>${getStatusIndicator(host.status)}</td>
+            <td>${host.hostname}</td>
+            <td>${host.ip_address || '-'}</td>
+            <td>${formatDate(host.last_seen)}</td>
+            <td>${host.tags || '-'}</td>
+            <td>
+                <button class="btn btn-small" onclick="deleteHost(${host.id}, '${host.hostname}')">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function filterHosts() {
+    const search = document.getElementById('search-input').value.toLowerCase();
+    const filtered = allHosts.filter(host =>
+        host.hostname.toLowerCase().includes(search) ||
+        (host.ip_address && host.ip_address.toLowerCase().includes(search))
+    );
+    displayHosts(filtered);
+}
+
+function showAddHostModal() {
+    document.getElementById('add-host-modal').classList.add('active');
+}
+
+function closeAddHostModal() {
+    document.getElementById('add-host-modal').classList.remove('active');
+    document.getElementById('add-host-form').reset();
+}
+
+async function handleAddHost(event) {
+    event.preventDefault();
+
+    const data = {
+        hostname: document.getElementById('hostname').value,
+        ip_address: document.getElementById('ip_address').value || null,
+        gsocket_secret: document.getElementById('gsocket_secret').value,
+        description: document.getElementById('description').value || null,
+        notes: document.getElementById('notes').value || null,
+        tags: document.getElementById('tags').value || null
+    };
+
+    try {
+        await apiRequest('/api/hosts', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+
+        showSuccess('Host added successfully');
+        closeAddHostModal();
+        loadHosts();
+    } catch (error) {
+        showError('Failed to add host: ' + error.message);
+    }
+}
+
+async function deleteHost(id, hostname) {
+    if (!confirm(`Delete host "${hostname}"?`)) return;
+
+    try {
+        await apiRequest(`/api/hosts/${id}`, { method: 'DELETE' });
+        showSuccess('Host deleted');
+        loadHosts();
+    } catch (error) {
+        showError('Failed to delete host: ' + error.message);
+    }
+}
+
+loadHosts();
+setInterval(loadHosts, 30000);
+</script>
+{% endblock %}

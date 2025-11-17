@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GSocket C2 Panel{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <a href="/" class="logo">C2 Panel</a>
+            <nav class="nav">
+                <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
+                <a href="/hosts" class="{% if '/hosts' in request.url.path %}active{% endif %}">Hosts</a>
+                <a href="/scripts" class="{% if '/scripts' in request.url.path %}active{% endif %}">Scripts</a>
+                <a href="/tasks" class="{% if '/tasks' in request.url.path %}active{% endif %}">Tasks</a>
+                <a href="/logs" class="{% if '/logs' in request.url.path %}active{% endif %}">Logs</a>
+            </nav>
+            <div class="user-info">
+                <span id="username">User</span> |
+                <a href="#" onclick="logout()" style="color: var(--accent-red);">Logout</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="/static/js/main.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

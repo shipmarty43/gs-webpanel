@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Scripts - C2 Panel{% endblock %}
+
+{% block content %}
+<div class="flex justify-between align-center mb-20">
+    <h1 class="card-title">Scripts Library</h1>
+    <button class="btn btn-primary" onclick="showAddScriptModal()">+ Add Script</button>
+</div>
+
+<div id="error-message" class="error-message" style="display: none;"></div>
+<div id="success-message" class="success-message" style="display: none;"></div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Timeout</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="scripts-tbody">
+            <tr><td colspan="5" class="text-center">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Script Modal -->
+<div id="add-script-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Add New Script</h2>
+            <button class="modal-close" onclick="closeAddScriptModal()">&times;</button>
+        </div>
+        <form id="add-script-form" onsubmit="handleAddScript(event)">
+            <div class="form-group">
+                <label class="form-label">Name *</label>
+                <input type="text" class="form-input" id="name" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea class="form-textarea" id="description" style="min-height: 60px;"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Script Content *</label>
+                <textarea class="form-textarea" id="content" required style="font-family: 'Consolas', monospace;">#!/bin/bash
+# Your script here</textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Timeout (seconds)</label>
+                <input type="number" class="form-input" id="timeout" value="300">
+            </div>
+            <button type="submit" class="btn btn-primary">Add Script</button>
+        </form>
+    </div>
+</div>
+
+<script>
+async function loadScripts() {
+    try {
+        const scripts = await apiRequest('/api/scripts');
+        const tbody = document.getElementById('scripts-tbody');
+
+        if (scripts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No scripts found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = scripts.map(script => `
+            <tr>
+                <td>${script.name}</td>
+                <td>${script.description || '-'}</td>
+                <td>${script.timeout}s</td>
+                <td>${formatDate(script.created_at)}</td>
+                <td>
+                    <button class="btn btn-small btn-success" onclick="useScript(${script.id})">Use</button>
+                    <button class="btn btn-small btn-danger" onclick="deleteScript(${script.id}, '${script.name}')">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        showError('Failed to load scripts: ' + error.message);
+    }
+}
+
+function showAddScriptModal() {
+    document.getElementById('add-script-modal').classList.add('active');
+}
+
+function closeAddScriptModal() {
+    document.getElementById('add-script-modal').classList.remove('active');
+    document.getElementById('add-script-form').reset();
+}
+
+async function handleAddScript(event) {
+    event.preventDefault();
+
+    const data = {
+        name: document.getElementById('name').value,
+        description: document.getElementById('description').value || null,
+        content: document.getElementById('content').value,
+        timeout: parseInt(document.getElementById('timeout').value)
+    };
+
+    try {
+        await apiRequest('/api/scripts', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+
+        showSuccess('Script added successfully');
+        closeAddScriptModal();
+        loadScripts();
+    } catch (error) {
+        showError('Failed to add script: ' + error.message);
+    }
+}
+
+async function deleteScript(id, name) {
+    if (!confirm(`Delete script "${name}"?`)) return;
+
+    try {
+        await apiRequest(`/api/scripts/${id}`, { method: 'DELETE' });
+        showSuccess('Script deleted');
+        loadScripts();
+    } catch (error) {
+        showError('Failed to delete script: ' + error.message);
+    }
+}
+
+function useScript(scriptId) {
+    window.location.href = `/tasks?script_id=${scriptId}`;
+}
+
+loadScripts();
+</script>
+{% endblock %}

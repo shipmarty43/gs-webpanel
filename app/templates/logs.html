@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - C2 Panel{% endblock %}
+
+{% block content %}
+<h1 class="card-title mb-20">System Logs</h1>
+
+<div id="error-message" class="error-message" style="display: none;"></div>
+
+<div class="card mb-20">
+    <div class="grid grid-4 gap-10">
+        <div class="form-group">
+            <label class="form-label">Level</label>
+            <select class="form-select" id="level-filter" onchange="loadLogs()">
+                <option value="">All</option>
+                <option value="INFO">INFO</option>
+                <option value="WARNING">WARNING</option>
+                <option value="ERROR">ERROR</option>
+                <option value="DEBUG">DEBUG</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-select" id="category-filter" onchange="loadLogs()">
+                <option value="">All</option>
+                <option value="connection">Connection</option>
+                <option value="execution">Execution</option>
+                <option value="system">System</option>
+                <option value="auth">Auth</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Time Range</label>
+            <select class="form-select" id="hours-filter" onchange="loadLogs()">
+                <option value="1">Last Hour</option>
+                <option value="24" selected>Last 24 Hours</option>
+                <option value="168">Last Week</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Actions</label>
+            <button class="btn btn-primary" onclick="exportLogs()" style="width: 100%;">Export CSV</button>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div id="logs-container" style="max-height: 600px; overflow-y: auto;">
+        <p class="text-center">Loading...</p>
+    </div>
+</div>
+
+<script>
+async function loadLogs() {
+    const level = document.getElementById('level-filter').value;
+    const category = document.getElementById('category-filter').value;
+    const hours = document.getElementById('hours-filter').value;
+
+    let url = `/api/logs?hours=${hours}&limit=100`;
+    if (level) url += `&level=${level}`;
+    if (category) url += `&category=${category}`;
+
+    try {
+        const logs = await apiRequest(url);
+        const container = document.getElementById('logs-container');
+
+        if (logs.length === 0) {
+            container.innerHTML = '<p class="text-center">No logs found</p>';
+            return;
+        }
+
+        container.innerHTML = logs.map(log => `
+            <div class="log-entry ${log.level.toLowerCase()}">
+                <span class="log-timestamp">[${formatDate(log.created_at)}]</span>
+                <span class="log-level">[${log.level}]</span>
+                <span class="log-category">[${log.category || 'general'}]</span>
+                <span class="log-message">${log.message}</span>
+            </div>
+        `).join('');
+    } catch (error) {
+        showError('Failed to load logs: ' + error.message);
+    }
+}
+
+async function exportLogs() {
+    const level = document.getElementById('level-filter').value;
+    const category = document.getElementById('category-filter').value;
+    const hours = document.getElementById('hours-filter').value;
+
+    let url = `/api/logs/export?hours=${hours}`;
+    if (level) url += `&level=${level}`;
+    if (category) url += `&category=${category}`;
+
+    try {
+        const token = localStorage.getItem('token');
+        window.open(url + `&token=${token}`, '_blank');
+    } catch (error) {
+        showError('Failed to export logs: ' + error.message);
+    }
+}
+
+loadLogs();
+setInterval(loadLogs, 30000);
+</script>
+{% endblock %}

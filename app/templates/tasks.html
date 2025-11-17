@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Tasks - C2 Panel{% endblock %}
+
+{% block content %}
+<div class="flex justify-between align-center mb-20">
+    <h1 class="card-title">Tasks</h1>
+    <button class="btn btn-primary" onclick="showCreateTaskModal()">+ Create Task</button>
+</div>
+
+<div id="error-message" class="error-message" style="display: none;"></div>
+<div id="success-message" class="success-message" style="display: none;"></div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Status</th>
+                <th>Hosts</th>
+                <th>Started</th>
+                <th>Completed</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="tasks-tbody">
+            <tr><td colspan="6" class="text-center">Loading...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- Create Task Modal -->
+<div id="create-task-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Create Task</h2>
+            <button class="modal-close" onclick="closeCreateTaskModal()">&times;</button>
+        </div>
+        <form id="create-task-form" onsubmit="handleCreateTask(event)">
+            <div class="form-group">
+                <label class="form-label">Script</label>
+                <select class="form-select" id="script_id">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Hosts *</label>
+                <div id="hosts-checkboxes" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; border-radius: 4px;">
+                    Loading...
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Execute Task</button>
+        </form>
+    </div>
+</div>
+
+<!-- Task Results Modal -->
+<div id="task-results-modal" class="modal">
+    <div class="modal-content" style="max-width: 900px;">
+        <div class="modal-header">
+            <h2 class="modal-title">Task Results</h2>
+            <button class="modal-close" onclick="closeTaskResultsModal()">&times;</button>
+        </div>
+        <div id="task-results-content">
+            Loading...
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadTasks() {
+    try {
+        const tasks = await apiRequest('/api/tasks?limit=50');
+        const tbody = document.getElementById('tasks-tbody');
+
+        if (tasks.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No tasks found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = tasks.map(task => {
+            const hostIds = JSON.parse(task.host_ids);
+            return `
+                <tr>
+                    <td>#${task.id}</td>
+                    <td>${getStatusIndicator(task.status)}</td>
+                    <td>${hostIds.length} hosts</td>
+                    <td>${formatDate(task.started_at)}</td>
+                    <td>${formatDate(task.completed_at)}</td>
+                    <td>
+                        <button class="btn btn-small" onclick="viewTaskResults(${task.id})">View Results</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        showError('Failed to load tasks: ' + error.message);
+    }
+}
+
+async function showCreateTaskModal() {
+    document.getElementById('create-task-modal').classList.add('active');
+
+    // Load scripts
+    try {
+        const scripts = await apiRequest('/api/scripts');
+        const select = document.getElementById('script_id');
+        select.innerHTML = '<option value="">-- Select Script --</option>' +
+            scripts.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    } catch (error) {
+        console.error('Failed to load scripts:', error);
+    }
+
+    // Load hosts
+    try {
+        const hosts = await apiRequest('/api/hosts');
+        const container = document.getElementById('hosts-checkboxes');
+        container.innerHTML = hosts.map(h => `
+            <div>
+                <label style="cursor: pointer;">
+                    <input type="checkbox" value="${h.id}" class="host-checkbox">
+                    ${h.hostname} (${h.status})
+                </label>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load hosts:', error);
+    }
+}
+
+function closeCreateTaskModal() {
+    document.getElementById('create-task-modal').classList.remove('active');
+}
+
+async function handleCreateTask(event) {
+    event.preventDefault();
+
+    const scriptId = document.getElementById('script_id').value;
+    const checkboxes = document.querySelectorAll('.host-checkbox:checked');
+    const hostIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    if (hostIds.length === 0) {
+        showError('Please select at least one host');
+        return;
+    }
+
+    if (!scriptId) {
+        showError('Please select a script');
+        return;
+    }
+
+    const data = {
+        script_id: parseInt(scriptId),
+        host_ids: hostIds
+    };
+
+    try {
+        await apiRequest('/api/tasks', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+
+        showSuccess('Task created and started');
+        closeCreateTaskModal();
+        loadTasks();
+    } catch (error) {
+        showError('Failed to create task: ' + error.message);
+    }
+}
+
+async function viewTaskResults(taskId) {
+    document.getElementById('task-results-modal').classList.add('active');
+    const content = document.getElementById('task-results-content');
+    content.innerHTML = 'Loading...';
+
+    try {
+        const results = await apiRequest(`/api/tasks/${taskId}/results`);
+        const hosts = await apiRequest('/api/hosts');
+        const hostMap = Object.fromEntries(hosts.map(h => [h.id, h]));
+
+        content.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>Host</th>
+                        <th>Status</th>
+                        <th>Exit Code</th>
+                        <th>Duration</th>
+                        <th>Output Preview</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${results.map(r => {
+                        const host = hostMap[r.host_id];
+                        const stdoutPreview = r.stdout ? r.stdout.substring(0, 100) + '...' : '-';
+                        return `
+                            <tr>
+                                <td>${host ? host.hostname : r.host_id}</td>
+                                <td>${getStatusIndicator(r.status)}</td>
+                                <td>${r.exit_code !== null ? r.exit_code : '-'}</td>
+                                <td>${formatDuration(r.duration_ms)}</td>
+                                <td style="font-family: monospace; font-size: 11px;">${stdoutPreview}</td>
+                            </tr>
+                        `;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        content.innerHTML = `<p class="error-message">Failed to load results: ${error.message}</p>`;
+    }
+}
+
+function closeTaskResultsModal() {
+    document.getElementById('task-results-modal').classList.remove('active');
+}
+
+loadTasks();
+setInterval(loadTasks, 10000);
+</script>
+{% endblock %}

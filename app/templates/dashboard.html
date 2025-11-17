@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - C2 Panel{% endblock %}
+
+{% block content %}
+<h1 class="card-title mb-20">Dashboard</h1>
+
+<div id="error-message" class="error-message" style="display: none;"></div>
+
+<div class="grid grid-4 mb-20">
+    <div class="stat-card">
+        <div class="stat-value" id="total-hosts">-</div>
+        <div class="stat-label">Total Hosts</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--accent-green);" id="online-hosts">-</div>
+        <div class="stat-label">Online</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" style="color: var(--accent-red);" id="offline-hosts">-</div>
+        <div class="stat-label">Offline</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value" id="total-tasks">-</div>
+        <div class="stat-label">Total Tasks</div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <h2 class="card-title">Host Status</h2>
+        <canvas id="host-status-chart" width="400" height="200"></canvas>
+    </div>
+
+    <div class="card">
+        <h2 class="card-title">Task Status</h2>
+        <canvas id="task-status-chart" width="400" height="200"></canvas>
+    </div>
+</div>
+
+<div class="card mt-20">
+    <h2 class="card-title">Recent Tasks</h2>
+    <table id="recent-tasks">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Status</th>
+                <th>Started</th>
+                <th>Completed</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="tasks-tbody">
+            <tr>
+                <td colspan="5" class="text-center">Loading...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+async function loadDashboard() {
+    try {
+        const stats = await apiRequest('/api/reports/dashboard');
+
+        document.getElementById('total-hosts').textContent = stats.total_hosts;
+        document.getElementById('online-hosts').textContent = stats.online_hosts;
+        document.getElementById('offline-hosts').textContent = stats.offline_hosts;
+        document.getElementById('total-tasks').textContent = stats.total_tasks;
+
+        await loadRecentTasks();
+    } catch (error) {
+        showError('Failed to load dashboard: ' + error.message);
+    }
+}
+
+async function loadRecentTasks() {
+    try {
+        const tasks = await apiRequest('/api/tasks?limit=10');
+        const tbody = document.getElementById('tasks-tbody');
+
+        if (tasks.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No tasks yet</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = tasks.map(task => `
+            <tr>
+                <td>#${task.id}</td>
+                <td>${getStatusIndicator(task.status)}</td>
+                <td>${formatDate(task.started_at)}</td>
+                <td>${formatDate(task.completed_at)}</td>
+                <td><a href="/tasks?id=${task.id}" class="btn btn-small">View</a></td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load tasks:', error);
+    }
+}
+
+// Auto-refresh every 30 seconds
+setInterval(loadDashboard, 30000);
+
+// Load on page load
+loadDashboard();
+</script>
+{% endblock %}

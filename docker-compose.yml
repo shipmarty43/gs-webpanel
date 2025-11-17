@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: c2-panel-web
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./app:/app/app
+      - ./static:/app/static
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key-in-production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-this-encryption-key}
+      - DATABASE_URL=sqlite:///./data/c2panel.db
+      - DEBUG=${DEBUG:-False}
+    restart: unless-stopped
+    command: python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Monitor service (runs in background)
+  monitor:
+    build: .
+    container_name: c2-panel-monitor
+    volumes:
+      - ./data:/app/data
+      - ./app:/app/app
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key-in-production}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-this-encryption-key}
+      - DATABASE_URL=sqlite:///./data/c2panel.db
+    restart: unless-stopped
+    command: python app/services/monitor_service.py
+    depends_on:
+      - web
+
+volumes:
+  data:
