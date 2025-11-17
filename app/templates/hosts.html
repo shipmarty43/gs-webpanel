@@ -109,6 +109,7 @@ function displayHosts(hosts) {
             <td>${formatDate(host.last_seen)}</td>
             <td>${host.tags || '-'}</td>
             <td>
+                <a href="/terminal/${host.id}" class="btn btn-small" style="margin-right: 5px;">Terminal</a>
                 <button class="btn btn-small" onclick="deleteHost(${host.id}, '${host.hostname}')">Delete</button>
             </td>
         </tr>

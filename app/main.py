@@ -8,7 +8,7 @@ import uvicorn
 
 from app.config import settings
 from app.database import Base, engine
-from app.routes import auth, hosts, scripts, tasks, logs, reports
+from app.routes import auth, hosts, scripts, tasks, logs, reports, terminal
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -44,6 +44,7 @@ app.include_router(scripts.router)
 app.include_router(tasks.router)
 app.include_router(logs.router)
 app.include_router(reports.router)
+app.include_router(terminal.router)
 
 
 # Health check
@@ -91,6 +92,12 @@ def logs_page(request: Request):
 def login_page(request: Request):
     """Login page"""
     return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.get("/terminal/{host_id}", response_class=HTMLResponse)
+def terminal_page(request: Request, host_id: int):
+    """Web terminal page"""
+    return templates.TemplateResponse("terminal.html", {"request": request, "host_id": host_id})
 
 
 if __name__ == "__main__":

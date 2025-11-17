@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Terminal - Host #{{ host_id }} - C2 Panel{% endblock %}
+
+{% block content %}
+<div class="flex justify-between align-center mb-20">
+    <h1 class="card-title">Web Terminal - Host #{{ host_id }}</h1>
+    <div>
+        <button class="btn btn-small" onclick="reconnect()">Reconnect</button>
+        <button class="btn btn-small" onclick="clearTerminal()">Clear</button>
+        <a href="/hosts" class="btn btn-small">Back to Hosts</a>
+    </div>
+</div>
+
+<div class="card">
+    <div id="terminal-container" style="height: 600px; background: #000; padding: 10px;"></div>
+</div>
+
+<div id="status" style="margin-top: 10px; padding: 10px; background: #161b22; border-radius: 6px;">
+    <span id="connection-status">Connecting...</span>
+</div>
+
+<!-- Include xterm.js from CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+<script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+
+<script>
+// Terminal instance
+let term;
+let fitAddon;
+let socket;
+const hostId = {{ host_id }};
+
+// Initialize terminal
+function initTerminal() {
+    // Create terminal
+    term = new Terminal({
+        cursorBlink: true,
+        fontSize: 14,
+        fontFamily: 'JetBrains Mono, Fira Code, Consolas, monospace',
+        theme: {
+            background: '#0d1117',
+            foreground: '#c9d1d9',
+            cursor: '#58a6ff',
+            black: '#484f58',
+            red: '#ff7b72',
+            green: '#7ee787',
+            yellow: '#ffa657',
+            blue: '#79c0ff',
+            magenta: '#d2a8ff',
+            cyan: '#a5d6ff',
+            white: '#b1bac4',
+            brightBlack: '#6e7681',
+            brightRed: '#ffa198',
+            brightGreen: '#56d364',
+            brightYellow: '#e3b341',
+            brightBlue: '#79c0ff',
+            brightMagenta: '#d2a8ff',
+            brightCyan: '#a5d6ff',
+            brightWhite: '#f0f6fc'
+        }
+    });
+
+    // Add fit addon for auto-sizing
+    fitAddon = new FitAddon.FitAddon();
+    term.loadAddon(fitAddon);
+
+    // Add web links addon
+    const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+    term.loadAddon(webLinksAddon);
+
+    // Open terminal
+    term.open(document.getElementById('terminal-container'));
+
+    // Fit terminal to container
+    fitAddon.fit();
+
+    // Resize on window resize
+    window.addEventListener('resize', () => {
+        fitAddon.fit();
+    });
+
+    // Handle terminal input
+    term.onData((data) => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(data);
+        }
+    });
+
+    // Welcome message
+    term.writeln('\x1b[1;32mGSocket Web Terminal\x1b[0m');
+    term.writeln('\x1b[90m' + '='.repeat(60) + '\x1b[0m');
+    term.writeln('');
+}
+
+// Connect to WebSocket
+function connect() {
+    updateStatus('Connecting...', 'yellow');
+
+    // Get token from localStorage
+    const token = localStorage.getItem('token');
+    if (!token) {
+        term.writeln('\x1b[1;31mError: Not authenticated. Please login first.\x1b[0m');
+        updateStatus('Not authenticated', 'red');
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+        return;
+    }
+
+    // WebSocket URL
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/api/terminal/ws/${hostId}?token=${token}`;
+
+    term.writeln(`\x1b[90mConnecting to host #${hostId}...\x1b[0m`);
+
+    // Create WebSocket connection
+    socket = new WebSocket(wsUrl);
+
+    socket.onopen = () => {
+        term.writeln('\x1b[1;32m✓ WebSocket connection established\x1b[0m');
+        term.writeln('\x1b[90mWaiting for host connection...\x1b[0m');
+        term.writeln('');
+        updateStatus('Connected', 'green');
+    };
+
+    socket.onmessage = (event) => {
+        try {
+            const message = JSON.parse(event.data);
+
+            switch (message.type) {
+                case 'connected':
+                    term.writeln(`\x1b[1;32m${message.data}\x1b[0m`);
+                    updateStatus('Session active', 'green');
+                    break;
+
+                case 'output':
+                    term.write(message.data);
+                    break;
+
+                case 'error':
+                    term.writeln(`\x1b[1;31m${message.data}\x1b[0m`);
+                    updateStatus('Error', 'red');
+                    break;
+
+                default:
+                    term.writeln(`\x1b[90mUnknown message type: ${message.type}\x1b[0m`);
+            }
+        } catch (e) {
+            console.error('Failed to parse message:', e);
+            term.writeln(`\x1b[1;31mProtocol error: ${e.message}\x1b[0m`);
+        }
+    };
+
+    socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        term.writeln('\x1b[1;31m✗ Connection error\x1b[0m');
+        updateStatus('Connection error', 'red');
+    };
+
+    socket.onclose = (event) => {
+        if (event.wasClean) {
+            term.writeln(`\x1b[1;33m\nConnection closed (code ${event.code})\x1b[0m`);
+        } else {
+            term.writeln('\x1b[1;31m\nConnection lost\x1b[0m');
+        }
+        updateStatus('Disconnected', 'red');
+        term.writeln('');
+        term.writeln('\x1b[90mPress "Reconnect" button to try again\x1b[0m');
+    };
+}
+
+// Update connection status
+function updateStatus(text, color) {
+    const statusEl = document.getElementById('connection-status');
+    statusEl.textContent = text;
+
+    const colors = {
+        green: '#7ee787',
+        yellow: '#ffa657',
+        red: '#ff7b72'
+    };
+
+    statusEl.style.color = colors[color] || '#c9d1d9';
+}
+
+// Reconnect
+function reconnect() {
+    if (socket) {
+        socket.close();
+    }
+    clearTerminal();
+    connect();
+}
+
+// Clear terminal
+function clearTerminal() {
+    term.clear();
+    term.writeln('\x1b[1;32mGSocket Web Terminal\x1b[0m');
+    term.writeln('\x1b[90m' + '='.repeat(60) + '\x1b[0m');
+    term.writeln('');
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    if (socket) {
+        socket.close();
+    }
+});
+
+// Initialize on load
+window.addEventListener('DOMContentLoaded', () => {
+    initTerminal();
+    connect();
+});
+</script>
+
+<style>
+.xterm {
+    height: 100%;
+}
+
+.xterm-viewport {
+    overflow-y: auto;
+}
+
+.xterm-screen {
+    overflow-y: auto;
+}
+
+#terminal-container {
+    border: 1px solid #30363d;
+    border-radius: 6px;
+}
+
+#status {
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    font-size: 13px;
+}
+
+#connection-status {
+    font-weight: bold;
+}
+</style>
+{% endblock %}
