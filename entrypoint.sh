@@ -30,6 +30,11 @@ if [ ! -f "$DB_PATH" ]; then
     python3 scripts/create_test_admin.py
     echo "✓ Admin user created"
     echo ""
+
+    echo "→ Initializing example administration scripts..."
+    python3 scripts/init_example_scripts.py
+    echo "✓ Example scripts initialized"
+    echo ""
 else
     echo "✓ Database exists"
 

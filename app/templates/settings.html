@@ -66,14 +66,19 @@ function displaySettings() {
         settingDiv.className = 'form-group';
         settingDiv.style.marginBottom = '15px';
 
+        // Create input with proper attributes based on type
+        const inputType = getInputType(data.value_type);
+        const inputAttrs = inputType === 'checkbox'
+            ? `type="checkbox" ${data.value ? 'checked' : ''}`
+            : `type="${inputType}" value="${data.value}"`;
+
         settingDiv.innerHTML = `
             <label class="form-label">${formatKey(key)}</label>
             <div style="display: flex; gap: 10px; align-items: center;">
                 <input
-                    type="${getInputType(data.value_type)}"
+                    ${inputAttrs}
                     id="setting-${key}"
                     class="form-input"
-                    value="${data.value}"
                     style="flex: 1;"
                 >
                 <button class="btn btn-small" onclick="updateSetting('${key}')">Save</button>

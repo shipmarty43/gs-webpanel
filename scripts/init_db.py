@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app.database import Base, engine, init_db
-from app.models import User, Host, Script, Task, TaskExecution, Log, PingHistory
+from app.models import User, Host, Script, Task, TaskExecution, Log, PingHistory, Settings
 
 
 def main():
@@ -28,8 +28,11 @@ def main():
         print("  - task_executions")
         print("  - logs")
         print("  - ping_history")
+        print("  - settings")
 
-        print("\nNext step: Run 'python scripts/create_admin.py' to create admin user")
+        print("\nNext steps:")
+        print("  1. Run 'python scripts/create_admin.py' to create admin user")
+        print("  2. Run 'python scripts/init_settings.py' to initialize default settings")
 
     except Exception as e:
         print(f"✗ Failed to initialize database: {e}")
