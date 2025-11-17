@@ -8,10 +8,14 @@ RUN apt-get update && apt-get install -y \
     gcc \
     curl \
     git \
+    bash \
+    make \
+    openssl \
+    libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Note: gsocket needs to be installed separately
-# RUN curl -fsSL https://gsocket.io/x | bash
+# Install gsocket tools (gs-netcat, etc.)
+RUN curl -fsSL https://gsocket.io/x | bash
 
 # Copy requirements
 COPY requirements.txt .
