@@ -27,9 +27,9 @@ class UserResponse(BaseModel):
 
 # Host schemas
 class HostCreate(BaseModel):
-    hostname: str = Field(..., max_length=100)
-    ip_address: Optional[str] = None
-    gsocket_secret: str
+    hostname: str = Field(..., max_length=100, description="Descriptive name for this host (not used for connection)")
+    ip_address: Optional[str] = Field(None, description="Optional IP address for reference")
+    gsocket_secret: str = Field(..., description="GSocket secret token - used for connection (both host and panel use same secret)")
     custom_gsrn_server: Optional[str] = Field(None, description="Custom GSRN server (e.g., relay.example.com:443)")
     description: Optional[str] = None
     notes: Optional[str] = None
