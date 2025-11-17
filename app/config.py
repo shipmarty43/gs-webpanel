@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     DEFAULT_TASK_TIMEOUT: int = 300
     DEFAULT_GSOCKET_WAIT: int = 10
 
+    # GSocket / GSRN
+    DEFAULT_GSRN_SERVER: Optional[str] = None  # e.g., "relay.example.com:443"
+    GSRN_CONNECT_TIMEOUT: int = 30
+    ENABLE_CUSTOM_GSRN: bool = True  # Allow hosts to use custom GSRN servers
+
     # Logging
     LOG_LEVEL: str = "INFO"
     LOG_RETENTION_DAYS: int = 90

@@ -52,6 +52,12 @@
             <div class="form-group">
                 <label class="form-label">GSocket Secret *</label>
                 <input type="text" class="form-input" id="gsocket_secret" required>
+                <small style="color: #8b949e; font-size: 12px;">Or <a href="#" onclick="generateSecret(event)" style="color: #58a6ff;">generate secure secret</a></small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Custom GSRN Server</label>
+                <input type="text" class="form-input" id="custom_gsrn_server" placeholder="relay.example.com:443">
+                <small style="color: #8b949e; font-size: 12px;">Optional: Leave empty to use default GSRN</small>
             </div>
             <div class="form-group">
                 <label class="form-label">Description</label>
@@ -129,6 +135,7 @@ async function handleAddHost(event) {
         hostname: document.getElementById('hostname').value,
         ip_address: document.getElementById('ip_address').value || null,
         gsocket_secret: document.getElementById('gsocket_secret').value,
+        custom_gsrn_server: document.getElementById('custom_gsrn_server').value || null,
         description: document.getElementById('description').value || null,
         notes: document.getElementById('notes').value || null,
         tags: document.getElementById('tags').value || null
@@ -145,6 +152,22 @@ async function handleAddHost(event) {
         loadHosts();
     } catch (error) {
         showError('Failed to add host: ' + error.message);
+    }
+}
+
+async function generateSecret(event) {
+    event.preventDefault();
+
+    try {
+        const response = await apiRequest('/api/hosts/utils/generate-secret');
+        if (response.success && response.secret) {
+            document.getElementById('gsocket_secret').value = response.secret;
+            showSuccess('Secure secret generated!');
+        } else {
+            showError('Failed to generate secret');
+        }
+    } catch (error) {
+        showError('Failed to generate secret: ' + error.message);
     }
 }
 

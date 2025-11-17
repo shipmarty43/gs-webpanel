@@ -30,6 +30,7 @@ class HostCreate(BaseModel):
     hostname: str = Field(..., max_length=100)
     ip_address: Optional[str] = None
     gsocket_secret: str
+    custom_gsrn_server: Optional[str] = Field(None, description="Custom GSRN server (e.g., relay.example.com:443)")
     description: Optional[str] = None
     notes: Optional[str] = None
     tags: Optional[str] = None
@@ -39,6 +40,7 @@ class HostUpdate(BaseModel):
     hostname: Optional[str] = Field(None, max_length=100)
     ip_address: Optional[str] = None
     gsocket_secret: Optional[str] = None
+    custom_gsrn_server: Optional[str] = Field(None, description="Custom GSRN server (e.g., relay.example.com:443)")
     description: Optional[str] = None
     notes: Optional[str] = None
     tags: Optional[str] = None
@@ -49,6 +51,7 @@ class HostResponse(BaseModel):
     id: int
     hostname: str
     ip_address: Optional[str]
+    custom_gsrn_server: Optional[str]
     description: Optional[str]
     notes: Optional[str]
     tags: Optional[str]

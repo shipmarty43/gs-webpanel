@@ -56,7 +56,8 @@ class GsocketService:
         command: str,
         timeout: int = None,
         wait_time: int = None,
-        use_interactive: bool = False
+        use_interactive: bool = False,
+        custom_gsrn_server: str = None
     ) -> Dict[str, any]:
         """
         Execute a command on a remote host via gsocket
@@ -72,6 +73,7 @@ class GsocketService:
             timeout: Command timeout in seconds (default: 300)
             wait_time: Time to wait for listener to become available (default: 10)
             use_interactive: Use interactive PTY mode with -i flag
+            custom_gsrn_server: Custom GSRN server (e.g., "relay.example.com:443")
 
         Returns:
             Dict with exit_code, stdout, stderr, duration_ms
@@ -117,6 +119,17 @@ class GsocketService:
             if use_interactive:
                 gs_args.append("-i")
 
+            # Prepare environment variables for custom GSRN server
+            env = os.environ.copy()
+            if custom_gsrn_server:
+                # Use GSOCKET_ARGS environment variable to specify custom relay server
+                # Format: GSOCKET_ARGS="-s relay.example.com:443"
+                env['GSOCKET_ARGS'] = f"-s {custom_gsrn_server}"
+                logger.debug(f"Using custom GSRN server: {custom_gsrn_server}")
+            elif settings.DEFAULT_GSRN_SERVER:
+                env['GSOCKET_ARGS'] = f"-s {settings.DEFAULT_GSRN_SERVER}"
+                logger.debug(f"Using default GSRN server: {settings.DEFAULT_GSRN_SERVER}")
+
             logger.debug(f"Executing gs-netcat with wait_time={wait_time}s, timeout={timeout}s")
 
             # Execute gs-netcat
@@ -124,7 +137,8 @@ class GsocketService:
                 *gs_args,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
+                env=env
             )
 
             # Send command followed by exit to close connection cleanly
@@ -202,7 +216,7 @@ class GsocketService:
                     logger.warning(f"Failed to delete temporary secret file: {e}")
 
     @staticmethod
-    async def check_host_availability(secret: str, timeout: int = 10) -> bool:
+    async def check_host_availability(secret: str, timeout: int = 10, custom_gsrn_server: str = None) -> bool:
         """
         Check if a host is available via gsocket
 
@@ -211,6 +225,7 @@ class GsocketService:
         Args:
             secret: Gsocket secret (encrypted)
             timeout: Ping timeout in seconds
+            custom_gsrn_server: Custom GSRN server (e.g., "relay.example.com:443")
 
         Returns:
             True if host is online and responding, False otherwise
@@ -220,7 +235,8 @@ class GsocketService:
             secret=secret,
             command="echo 'pong'",
             timeout=timeout,
-            wait_time=timeout  # Wait same time as timeout for quick check
+            wait_time=timeout,  # Wait same time as timeout for quick check
+            custom_gsrn_server=custom_gsrn_server
         )
 
         # Host is available if:
@@ -282,7 +298,7 @@ class GsocketService:
             return None
 
     @staticmethod
-    async def test_connection(secret: str, wait_time: int = 5) -> Dict[str, any]:
+    async def test_connection(secret: str, wait_time: int = 5, custom_gsrn_server: str = None) -> Dict[str, any]:
         """
         Test connection to a host without executing commands
 
@@ -291,6 +307,7 @@ class GsocketService:
         Args:
             secret: Gsocket secret (encrypted)
             wait_time: Time to wait for listener
+            custom_gsrn_server: Custom GSRN server (e.g., "relay.example.com:443")
 
         Returns:
             Dict with is_listening (bool) and message (str)
@@ -312,11 +329,20 @@ class GsocketService:
 
             os.chmod(secret_file, 0o600)
 
+            # Prepare environment variables for custom GSRN server
+            env = os.environ.copy()
+            if custom_gsrn_server:
+                env['GSOCKET_ARGS'] = f"-s {custom_gsrn_server}"
+                logger.debug(f"Testing connection via custom GSRN: {custom_gsrn_server}")
+            elif settings.DEFAULT_GSRN_SERVER:
+                env['GSOCKET_ARGS'] = f"-s {settings.DEFAULT_GSRN_SERVER}"
+
             # Use -t flag to test if peer is listening
             process = await asyncio.create_subprocess_exec(
                 "gs-netcat", "-k", secret_file, "-t",
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
+                stderr=asyncio.subprocess.PIPE,
+                env=env
             )
 
             stdout, stderr = await asyncio.wait_for(

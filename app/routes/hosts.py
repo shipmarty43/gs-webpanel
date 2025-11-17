@@ -79,6 +79,7 @@ def create_host(
         hostname=host_data.hostname,
         ip_address=host_data.ip_address,
         gsocket_secret=encrypted_secret,
+        custom_gsrn_server=host_data.custom_gsrn_server,
         description=host_data.description,
         notes=host_data.notes,
         tags=host_data.tags
@@ -156,6 +157,8 @@ def update_host(
         host.ip_address = host_data.ip_address
     if host_data.gsocket_secret:
         host.gsocket_secret = crypto_service.encrypt(host_data.gsocket_secret)
+    if host_data.custom_gsrn_server is not None:
+        host.custom_gsrn_server = host_data.custom_gsrn_server
     if host_data.description is not None:
         host.description = host_data.description
     if host_data.notes is not None:
@@ -274,7 +277,11 @@ async def test_host_connection(
     if not host:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Host not found")
 
-    result = await gsocket_service.test_connection(secret=host.gsocket_secret, wait_time=5)
+    result = await gsocket_service.test_connection(
+        secret=host.gsocket_secret,
+        wait_time=5,
+        custom_gsrn_server=host.custom_gsrn_server
+    )
 
     logger_service.info(
         db,

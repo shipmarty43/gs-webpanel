@@ -46,7 +46,8 @@ class MonitorService:
         try:
             is_online = await gsocket_service.check_host_availability(
                 secret=host.gsocket_secret,
-                timeout=settings.PING_TIMEOUT
+                timeout=settings.PING_TIMEOUT,
+                custom_gsrn_server=host.custom_gsrn_server
             )
 
             response_time_ms = int((time.time() - start_time) * 1000)

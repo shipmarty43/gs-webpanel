@@ -13,6 +13,7 @@ class Host(Base):
     hostname = Column(String(100), nullable=False, index=True)
     ip_address = Column(String(45), nullable=True)
     gsocket_secret = Column(String(255), nullable=False)  # encrypted
+    custom_gsrn_server = Column(String(255), nullable=True)  # e.g., "relay.example.com:443"
     description = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)  # User notes/comments
     tags = Column(Text, nullable=True)  # JSON array as string

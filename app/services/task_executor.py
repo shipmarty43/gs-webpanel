@@ -152,7 +152,8 @@ class TaskExecutorService:
         result = await gsocket_service.execute_command(
             secret=host.gsocket_secret,
             command=script_content,
-            timeout=timeout
+            timeout=timeout,
+            custom_gsrn_server=host.custom_gsrn_server
         )
 
         # Update execution with results
