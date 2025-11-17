@@ -221,3 +221,71 @@ def check_host_status(
         "status": host.status,
         "last_seen": host.last_seen
     }
+
+
+@router.get("/utils/generate-secret")
+def generate_secret(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Generate a cryptographically strong gsocket secret
+
+    Uses gs-netcat -g to generate a secure random password.
+    Requires gs-netcat to be installed on the server.
+
+    Returns:
+        Dict with generated secret or error message
+    """
+    from app.services.gsocket_service import gsocket_service
+
+    secret = gsocket_service.generate_secret()
+
+    if secret:
+        return {
+            "success": True,
+            "secret": secret,
+            "message": "Secure secret generated successfully"
+        }
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to generate secret. Ensure gs-netcat is installed on the server."
+        )
+
+
+@router.post("/{host_id}/test-connection")
+async def test_host_connection(
+    host_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Test gsocket connection to a host
+
+    Uses gs-netcat -t flag to check if the host is listening
+    without executing any commands.
+
+    Returns:
+        Dict with connection test results
+    """
+    from app.services.gsocket_service import gsocket_service
+
+    host = db.query(Host).filter(Host.id == host_id).first()
+    if not host:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Host not found")
+
+    result = await gsocket_service.test_connection(secret=host.gsocket_secret, wait_time=5)
+
+    logger_service.info(
+        db,
+        f"Connection test for {host.hostname}: {result['message']}",
+        category="connection",
+        host_id=host.id
+    )
+
+    return {
+        "host_id": host.id,
+        "hostname": host.hostname,
+        "is_listening": result["is_listening"],
+        "message": result["message"]
+    }
