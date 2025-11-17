@@ -1,0 +1,6 @@
+hostname,ip_address,gsocket_secret,custom_gsrn_server,description,tags
+web-server-01,192.168.1.10,your-secret-here,,Production web server,prod;web;nginx
+db-server-01,192.168.1.20,your-secret-here,,PostgreSQL database,prod;db;postgres
+app-server-01,192.168.1.30,your-secret-here,relay.example.com:443,Application server,prod;app;nodejs
+backup-server,10.0.0.50,your-secret-here,,Backup storage,backup;storage
+dev-server-01,,your-secret-here,,Development server,dev;test

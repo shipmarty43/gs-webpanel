@@ -1,8 +1,10 @@
 """Host management routes"""
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
+import csv
+import io
 from app.database import get_db
 from app.models.host import Host
 from app.models.user import User
@@ -296,3 +298,148 @@ async def test_host_connection(
         "is_listening": result["is_listening"],
         "message": result["message"]
     }
+
+
+@router.post("/import/csv")
+async def import_hosts_csv(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Import hosts from CSV file
+
+    CSV Format (with header):
+    hostname,ip_address,gsocket_secret,custom_gsrn_server,description,tags
+
+    Required columns: hostname, gsocket_secret
+    Optional columns: ip_address, custom_gsrn_server, description, tags
+
+    Example:
+    hostname,ip_address,gsocket_secret,custom_gsrn_server,description,tags
+    web-server-01,192.168.1.10,secret123,,Production web server,prod;web
+    db-server-01,,secret456,relay.example.com:443,Database server,prod;db
+    """
+
+    # Validate file type
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File must be a CSV file"
+        )
+
+    try:
+        # Read file content
+        content = await file.read()
+        csv_data = content.decode('utf-8')
+
+        # Parse CSV
+        csv_reader = csv.DictReader(io.StringIO(csv_data))
+
+        # Validate required columns
+        required_columns = {'hostname', 'gsocket_secret'}
+        if not required_columns.issubset(csv_reader.fieldnames):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"CSV must contain columns: {', '.join(required_columns)}"
+            )
+
+        results = {
+            "total": 0,
+            "imported": 0,
+            "skipped": 0,
+            "errors": []
+        }
+
+        for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header is row 1)
+            results["total"] += 1
+
+            # Skip empty rows
+            if not row.get('hostname') or not row.get('gsocket_secret'):
+                results["skipped"] += 1
+                results["errors"].append(f"Row {row_num}: Missing required fields")
+                continue
+
+            hostname = row['hostname'].strip()
+            gsocket_secret = row['gsocket_secret'].strip()
+
+            # Validate hostname
+            is_valid, error = validate_hostname(hostname)
+            if not is_valid:
+                results["skipped"] += 1
+                results["errors"].append(f"Row {row_num} ({hostname}): {error}")
+                continue
+
+            # Check if host already exists
+            existing = db.query(Host).filter(Host.hostname == hostname).first()
+            if existing:
+                results["skipped"] += 1
+                results["errors"].append(f"Row {row_num} ({hostname}): Hostname already exists")
+                continue
+
+            # Get optional fields
+            ip_address = row.get('ip_address', '').strip() or None
+            custom_gsrn_server = row.get('custom_gsrn_server', '').strip() or None
+            description = row.get('description', '').strip() or None
+            tags = row.get('tags', '').strip() or None
+
+            # Validate IP if provided
+            if ip_address:
+                is_valid, error = validate_ip_address(ip_address)
+                if not is_valid:
+                    results["skipped"] += 1
+                    results["errors"].append(f"Row {row_num} ({hostname}): {error}")
+                    continue
+
+            try:
+                # Encrypt secret
+                encrypted_secret = crypto_service.encrypt(gsocket_secret)
+
+                # Create host
+                host = Host(
+                    hostname=hostname,
+                    ip_address=ip_address,
+                    gsocket_secret=encrypted_secret,
+                    custom_gsrn_server=custom_gsrn_server,
+                    description=description,
+                    tags=tags
+                )
+
+                db.add(host)
+                results["imported"] += 1
+
+            except Exception as e:
+                results["skipped"] += 1
+                results["errors"].append(f"Row {row_num} ({hostname}): {str(e)}")
+
+        # Commit all changes
+        db.commit()
+
+        # Log import
+        logger_service.info(
+            db,
+            f"CSV import: {results['imported']} hosts imported, {results['skipped']} skipped",
+            category="system"
+        )
+
+        return {
+            "success": True,
+            "message": f"Import completed: {results['imported']} imported, {results['skipped']} skipped",
+            "results": results
+        }
+
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file encoding. File must be UTF-8"
+        )
+    except csv.Error as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"CSV parsing error: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Import failed: {str(e)}"
+        )

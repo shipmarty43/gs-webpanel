@@ -5,7 +5,10 @@
 {% block content %}
 <div class="flex justify-between align-center mb-20">
     <h1 class="card-title">Hosts Management</h1>
-    <button class="btn btn-primary" onclick="showAddHostModal()">+ Add Host</button>
+    <div>
+        <button class="btn btn-primary" onclick="showImportCsvModal()" style="margin-right: 10px;">Import CSV</button>
+        <button class="btn btn-primary" onclick="showAddHostModal()">+ Add Host</button>
+    </div>
 </div>
 
 <div id="error-message" class="error-message" style="display: none;"></div>
@@ -78,6 +81,32 @@
             </div>
             <button type="submit" class="btn btn-primary">Add Host</button>
         </form>
+    </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div id="import-csv-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Import Hosts from CSV</h2>
+            <button class="modal-close" onclick="closeImportCsvModal()">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">CSV File</label>
+            <input type="file" id="csv-file" accept=".csv" class="form-input">
+            <small style="color: #8b949e; font-size: 12px; margin-top: 5px; display: block;">
+                Required columns: hostname, gsocket_secret<br>
+                Optional columns: ip_address, custom_gsrn_server, description, tags
+            </small>
+        </div>
+        <div class="form-group">
+            <button class="btn btn-primary" onclick="handleImportCsv()">Import</button>
+            <button class="btn" onclick="downloadCsvTemplate()" style="margin-left: 10px;">Download Template</button>
+        </div>
+        <div id="import-results" style="display: none; margin-top: 20px;">
+            <h3 style="margin-bottom: 10px;">Import Results:</h3>
+            <div id="import-results-content" style="background: var(--bg-secondary); padding: 15px; border-radius: 5px; font-family: monospace; font-size: 12px;"></div>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -189,6 +218,99 @@ async function deleteHost(id, hostname) {
     } catch (error) {
         showError('Failed to delete host: ' + error.message);
     }
+}
+
+function showImportCsvModal() {
+    document.getElementById('import-csv-modal').classList.add('active');
+    document.getElementById('import-results').style.display = 'none';
+}
+
+function closeImportCsvModal() {
+    document.getElementById('import-csv-modal').classList.remove('active');
+    document.getElementById('csv-file').value = '';
+    document.getElementById('import-results').style.display = 'none';
+}
+
+async function handleImportCsv() {
+    const fileInput = document.getElementById('csv-file');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        showError('Please select a CSV file');
+        return;
+    }
+
+    if (!file.name.endsWith('.csv')) {
+        showError('File must be a CSV file');
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/api/hosts/import/csv', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.detail || 'Import failed');
+        }
+
+        // Display results
+        const resultsDiv = document.getElementById('import-results');
+        const resultsContent = document.getElementById('import-results-content');
+
+        let html = `
+            <div style="color: #3fb950;">✓ Import completed</div>
+            <div style="margin-top: 10px;">
+                Total rows: ${result.results.total}<br>
+                Imported: ${result.results.imported}<br>
+                Skipped: ${result.results.skipped}
+            </div>
+        `;
+
+        if (result.results.errors.length > 0) {
+            html += `
+                <div style="margin-top: 15px; color: #f85149;">
+                    <strong>Errors:</strong><br>
+                    ${result.results.errors.map(e => `• ${e}`).join('<br>')}
+                </div>
+            `;
+        }
+
+        resultsContent.innerHTML = html;
+        resultsDiv.style.display = 'block';
+
+        showSuccess(result.message);
+        loadHosts();
+
+    } catch (error) {
+        showError('Import failed: ' + error.message);
+    }
+}
+
+function downloadCsvTemplate() {
+    const template = `hostname,ip_address,gsocket_secret,custom_gsrn_server,description,tags
+web-server-01,192.168.1.10,your-secret-here,,Production web server,prod;web
+db-server-01,,your-secret-here,relay.example.com:443,Database server,prod;db
+app-server-01,192.168.1.20,your-secret-here,,Application server,prod;app`;
+
+    const blob = new Blob([template], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'hosts-import-template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
 }
 
 loadHosts();
