@@ -198,3 +198,80 @@ def retry_failed_executions(
         "message": f"Retry task created for {len(failed_host_ids)} hosts",
         "retry_task_id": retry_task.id
     }
+
+
+@router.post("/quick-execute")
+async def quick_execute_command(
+    request_data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Quickly execute a command on a host and return result
+
+    This is used for quick actions like getting hostname, checking connectivity, etc.
+    Does not create a task in the database.
+
+    Request body:
+    {
+        "host_id": 1,
+        "command": "hostname",
+        "timeout": 10
+    }
+    """
+    from app.services.gsocket_service import gsocket_service
+
+    host_id = request_data.get("host_id")
+    command = request_data.get("command")
+    timeout = request_data.get("timeout", 10)
+
+    if not host_id or not command:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="host_id and command are required"
+        )
+
+    # Get host
+    host = db.query(Host).filter(Host.id == host_id).first()
+    if not host:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Host not found"
+        )
+
+    try:
+        # Execute command
+        result = await gsocket_service.execute_command(
+            secret=host.gsocket_secret,
+            command=command,
+            timeout=timeout,
+            custom_gsrn_server=host.custom_gsrn_server
+        )
+
+        logger_service.info(
+            db,
+            f"Quick execute on {host.hostname}: {command}",
+            category="execution",
+            host_id=host.id
+        )
+
+        return {
+            "success": result["success"],
+            "output": result.get("stdout", ""),
+            "error": result.get("stderr", ""),
+            "exit_code": result.get("exit_code"),
+            "message": result.get("message", "")
+        }
+
+    except Exception as e:
+        logger_service.error(
+            db,
+            f"Quick execute failed on {host.hostname}: {str(e)}",
+            category="execution",
+            host_id=host.id
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Command execution failed: {str(e)}"
+        )

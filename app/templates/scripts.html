@@ -16,6 +16,7 @@
         <thead>
             <tr>
                 <th>Name</th>
+                <th>Category</th>
                 <th>Description</th>
                 <th>Timeout</th>
                 <th>Created</th>
@@ -23,7 +24,7 @@
             </tr>
         </thead>
         <tbody id="scripts-tbody">
-            <tr><td colspan="5" class="text-center">Loading...</td></tr>
+            <tr><td colspan="6" class="text-center">Loading...</td></tr>
         </tbody>
     </table>
 </div>
@@ -67,22 +68,29 @@ async function loadScripts() {
         const tbody = document.getElementById('scripts-tbody');
 
         if (scripts.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No scripts found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No scripts found</td></tr>';
             return;
         }
 
-        tbody.innerHTML = scripts.map(script => `
-            <tr>
-                <td>${script.name}</td>
-                <td>${script.description || '-'}</td>
-                <td>${script.timeout}s</td>
-                <td>${formatDate(script.created_at)}</td>
-                <td>
-                    <button class="btn btn-small btn-success" onclick="useScript(${script.id})">Use</button>
-                    <button class="btn btn-small btn-danger" onclick="deleteScript(${script.id}, '${script.name}')">Delete</button>
-                </td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = scripts.map(script => {
+            const categoryBadge = script.category
+                ? `<span style="background: var(--bg-secondary); padding: 2px 8px; border-radius: 3px; font-size: 11px;">${script.category}</span>`
+                : '-';
+
+            return `
+                <tr>
+                    <td>${script.name}</td>
+                    <td>${categoryBadge}</td>
+                    <td>${script.description || '-'}</td>
+                    <td>${script.timeout}s</td>
+                    <td>${formatDate(script.created_at)}</td>
+                    <td>
+                        <button class="btn btn-small btn-success" onclick="useScript(${script.id})">Run on Hosts</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteScript(${script.id}, '${script.name}')">Delete</button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     } catch (error) {
         showError('Failed to load scripts: ' + error.message);
     }

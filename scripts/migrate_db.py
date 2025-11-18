@@ -96,6 +96,19 @@ def migrate_database():
         else:
             print("✓ Table 'settings' already exists")
 
+        # Migration 3: Add category column to scripts table
+        if table_exists(cursor, 'scripts') and not column_exists(cursor, 'scripts', 'category'):
+            print("→ Adding 'category' column to scripts table...")
+            cursor.execute("""
+                ALTER TABLE scripts
+                ADD COLUMN category VARCHAR(50)
+            """)
+            conn.commit()
+            print("✓ Column 'category' added")
+            migrations_applied += 1
+        elif table_exists(cursor, 'scripts'):
+            print("✓ Column 'category' already exists")
+
         # Future migrations can be added here
         # Example:
         # if not column_exists(cursor, 'table_name', 'new_column'):

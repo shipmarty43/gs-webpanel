@@ -6,6 +6,12 @@
 <div class="flex justify-between align-center mb-20">
     <h1 class="card-title">Hosts Management</h1>
     <div>
+        <button class="btn btn-success" id="bulk-check-btn" onclick="bulkCheckHosts()" style="margin-right: 10px; display: none;">
+            <span id="bulk-check-count">0</span> Проверить
+        </button>
+        <button class="btn btn-primary" id="bulk-script-btn" onclick="showBulkScriptModal()" style="margin-right: 10px; display: none;">
+            <span id="bulk-script-count">0</span> Выполнить скрипт
+        </button>
         <button class="btn btn-primary" onclick="showImportCsvModal()" style="margin-right: 10px;">Import CSV</button>
         <button class="btn btn-primary" onclick="showAddHostModal()">+ Add Host</button>
     </div>
@@ -22,6 +28,9 @@
     <table>
         <thead>
             <tr>
+                <th style="width: 30px;">
+                    <input type="checkbox" id="select-all" onchange="toggleSelectAll()" title="Выбрать все">
+                </th>
                 <th>Status</th>
                 <th>Hostname</th>
                 <th>IP Address</th>
@@ -31,7 +40,7 @@
             </tr>
         </thead>
         <tbody id="hosts-tbody">
-            <tr><td colspan="6" class="text-center">Loading...</td></tr>
+            <tr><td colspan="7" class="text-center">Loading...</td></tr>
         </tbody>
     </table>
 </div>
@@ -84,6 +93,29 @@
     </div>
 </div>
 
+<!-- Bulk Script Execution Modal -->
+<div id="bulk-script-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Выполнить скрипт на выбранных хостах</h2>
+            <button class="modal-close" onclick="closeBulkScriptModal()">&times;</button>
+        </div>
+        <form id="bulk-script-form" onsubmit="handleBulkScriptExecution(event)">
+            <div class="form-group">
+                <label class="form-label">Выберите скрипт *</label>
+                <select class="form-select" id="bulk-script-select" required>
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Выбрано хостов: <strong id="selected-hosts-count">0</strong></label>
+                <div id="selected-hosts-list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); padding: 10px; border-radius: 4px; font-size: 12px;"></div>
+            </div>
+            <button type="submit" class="btn btn-primary">Выполнить</button>
+        </form>
+    </div>
+</div>
+
 <!-- Import CSV Modal -->
 <div id="import-csv-modal" class="modal">
     <div class="modal-content">
@@ -128,20 +160,30 @@ function displayHosts(hosts) {
     const tbody = document.getElementById('hosts-tbody');
 
     if (hosts.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">No hosts found</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">No hosts found</td></tr>';
         return;
     }
 
     tbody.innerHTML = hosts.map(host => `
         <tr>
+            <td>
+                <input type="checkbox" class="host-checkbox" value="${host.id}" onchange="updateBulkActions()">
+            </td>
             <td>${getStatusIndicator(host.status)}</td>
-            <td>${host.hostname}</td>
+            <td>
+                ${host.hostname}
+                <button class="btn btn-small" onclick="copySecret(${host.id})" style="margin-left: 5px; padding: 2px 6px; font-size: 10px;" title="Копировать Secret">
+                    📋
+                </button>
+            </td>
             <td>${host.ip_address || '-'}</td>
             <td>${formatDate(host.last_seen)}</td>
             <td>${host.tags || '-'}</td>
             <td>
+                <button class="btn btn-small btn-success" onclick="checkHost(${host.id}, '${host.hostname}')" style="margin-right: 5px;">Проверить</button>
+                <button class="btn btn-small" onclick="getHostname(${host.id}, '${host.hostname}')" style="margin-right: 5px;">Hostname</button>
                 <a href="/terminal/${host.id}" class="btn btn-small" style="margin-right: 5px;">Terminal</a>
-                <button class="btn btn-small" onclick="deleteHost(${host.id}, '${host.hostname}')">Delete</button>
+                <button class="btn btn-small btn-danger" onclick="deleteHost(${host.id}, '${host.hostname}')">Delete</button>
             </td>
         </tr>
     `).join('');
@@ -311,6 +353,208 @@ app-server-01,192.168.1.20,your-secret-here,,Application server,prod;app`;
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+}
+
+// Toggle select all checkboxes
+function toggleSelectAll() {
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.host-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    updateBulkActions();
+}
+
+// Update bulk action buttons visibility
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.host-checkbox:checked');
+    const count = checkboxes.length;
+
+    const bulkCheckBtn = document.getElementById('bulk-check-btn');
+    const bulkScriptBtn = document.getElementById('bulk-script-btn');
+    const bulkCheckCount = document.getElementById('bulk-check-count');
+    const bulkScriptCount = document.getElementById('bulk-script-count');
+
+    if (count > 0) {
+        bulkCheckBtn.style.display = 'inline-block';
+        bulkScriptBtn.style.display = 'inline-block';
+        bulkCheckCount.textContent = count;
+        bulkScriptCount.textContent = count;
+    } else {
+        bulkCheckBtn.style.display = 'none';
+        bulkScriptBtn.style.display = 'none';
+    }
+}
+
+// Check single host
+async function checkHost(hostId, hostname) {
+    try {
+        showSuccess(`Проверка ${hostname}...`);
+        const result = await apiRequest(`/api/hosts/${hostId}/test-connection`, { method: 'POST' });
+
+        if (result.is_listening) {
+            showSuccess(`✓ ${hostname}: ${result.message}`);
+        } else {
+            showError(`✗ ${hostname}: ${result.message}`);
+        }
+
+        // Reload hosts to update status
+        setTimeout(loadHosts, 2000);
+    } catch (error) {
+        showError(`Ошибка проверки ${hostname}: ${error.message}`);
+    }
+}
+
+// Bulk check selected hosts
+async function bulkCheckHosts() {
+    const checkboxes = document.querySelectorAll('.host-checkbox:checked');
+    if (checkboxes.length === 0) {
+        showError('Выберите хосты для проверки');
+        return;
+    }
+
+    const hostIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const hostsMap = Object.fromEntries(allHosts.map(h => [h.id, h]));
+
+    showSuccess(`Проверка ${hostIds.length} хостов...`);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const hostId of hostIds) {
+        const host = hostsMap[hostId];
+        if (!host) continue;
+
+        try {
+            const result = await apiRequest(`/api/hosts/${hostId}/test-connection`, { method: 'POST' });
+            if (result.is_listening) {
+                successCount++;
+            } else {
+                failCount++;
+            }
+        } catch (error) {
+            failCount++;
+        }
+    }
+
+    showSuccess(`Проверка завершена: ✓ ${successCount} онлайн, ✗ ${failCount} оффлайн`);
+
+    // Reload hosts to update status
+    setTimeout(loadHosts, 2000);
+}
+
+// Get hostname from host
+async function getHostname(hostId, displayName) {
+    try {
+        showSuccess(`Получение hostname для ${displayName}...`);
+
+        // Create a quick task to get hostname
+        const result = await apiRequest('/api/tasks/quick-execute', {
+            method: 'POST',
+            body: JSON.stringify({
+                host_id: hostId,
+                command: 'hostname',
+                timeout: 10
+            })
+        });
+
+        if (result.success && result.output) {
+            const hostname = result.output.trim();
+            showSuccess(`Hostname для ${displayName}: ${hostname}`);
+        } else {
+            showError(`Не удалось получить hostname для ${displayName}`);
+        }
+    } catch (error) {
+        showError(`Ошибка получения hostname: ${error.message}`);
+    }
+}
+
+// Copy secret to clipboard
+async function copySecret(hostId) {
+    try {
+        const host = await apiRequest(`/api/hosts/${hostId}`);
+
+        if (!host.gsocket_secret) {
+            showError('Secret не найден');
+            return;
+        }
+
+        // Copy to clipboard
+        await navigator.clipboard.writeText(host.gsocket_secret);
+        showSuccess('Secret скопирован в буфер обмена');
+    } catch (error) {
+        showError('Ошибка копирования secret: ' + error.message);
+    }
+}
+
+// Show bulk script execution modal
+async function showBulkScriptModal() {
+    const checkboxes = document.querySelectorAll('.host-checkbox:checked');
+    if (checkboxes.length === 0) {
+        showError('Выберите хосты для выполнения скрипта');
+        return;
+    }
+
+    document.getElementById('bulk-script-modal').classList.add('active');
+
+    // Load scripts
+    try {
+        const scripts = await apiRequest('/api/scripts');
+        const select = document.getElementById('bulk-script-select');
+        select.innerHTML = '<option value="">-- Выберите скрипт --</option>' +
+            scripts.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    } catch (error) {
+        console.error('Failed to load scripts:', error);
+    }
+
+    // Show selected hosts
+    const hostIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const hostsMap = Object.fromEntries(allHosts.map(h => [h.id, h]));
+
+    const selectedHostsList = document.getElementById('selected-hosts-list');
+    const selectedHostsCount = document.getElementById('selected-hosts-count');
+
+    selectedHostsCount.textContent = hostIds.length;
+    selectedHostsList.innerHTML = hostIds.map(id => {
+        const host = hostsMap[id];
+        return `<div>• ${host ? host.hostname : id}</div>`;
+    }).join('');
+}
+
+function closeBulkScriptModal() {
+    document.getElementById('bulk-script-modal').classList.remove('active');
+}
+
+// Handle bulk script execution
+async function handleBulkScriptExecution(event) {
+    event.preventDefault();
+
+    const scriptId = document.getElementById('bulk-script-select').value;
+    if (!scriptId) {
+        showError('Выберите скрипт');
+        return;
+    }
+
+    const checkboxes = document.querySelectorAll('.host-checkbox:checked');
+    const hostIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    try {
+        await apiRequest('/api/tasks', {
+            method: 'POST',
+            body: JSON.stringify({
+                script_id: parseInt(scriptId),
+                host_ids: hostIds
+            })
+        });
+
+        showSuccess('Задача создана и запущена');
+        closeBulkScriptModal();
+
+        // Redirect to tasks page
+        setTimeout(() => {
+            window.location.href = '/tasks';
+        }, 1500);
+    } catch (error) {
+        showError('Ошибка создания задачи: ' + error.message);
+    }
 }
 
 loadHosts();

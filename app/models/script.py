@@ -13,6 +13,7 @@ class Script(Base):
     name = Column(String(100), nullable=False, index=True)
     description = Column(Text, nullable=True)
     content = Column(Text, nullable=False)  # bash script content
+    category = Column(String(50), nullable=True)  # monitoring, security, maintenance, diagnostics
     timeout = Column(Integer, default=300)  # seconds
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
