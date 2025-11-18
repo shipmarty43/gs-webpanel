@@ -5,42 +5,161 @@
 {% block content %}
 <div class="flex justify-between align-center mb-20">
     <h1 class="card-title">Application Settings</h1>
+    <div>
+        <button class="btn btn-success" onclick="saveAllSettings()" id="save-all-btn" style="margin-right: 10px; display: none;">
+            Save All Changes
+        </button>
+        <button class="btn" onclick="loadSettings()">
+            Refresh
+        </button>
+    </div>
 </div>
 
 <div id="error-message" class="error-message" style="display: none;"></div>
 <div id="success-message" class="success-message" style="display: none;"></div>
 
+<!-- System Information -->
 <div class="card">
-    <h2 style="margin-bottom: 20px;">Monitoring Settings</h2>
+    <h2 style="margin-bottom: 15px; display: flex; align-items: center;">
+        <span>📊 System Information</span>
+    </h2>
+    <div id="system-info" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+        <div style="padding: 10px; background: var(--bg-secondary); border-radius: 5px;">
+            <div style="font-size: 11px; color: #8b949e; margin-bottom: 5px;">Application Version</div>
+            <div style="font-size: 16px; font-weight: bold;" id="app-version">-</div>
+        </div>
+        <div style="padding: 10px; background: var(--bg-secondary); border-radius: 5px;">
+            <div style="font-size: 11px; color: #8b949e; margin-bottom: 5px;">Total Hosts</div>
+            <div style="font-size: 16px; font-weight: bold;" id="total-hosts">-</div>
+        </div>
+        <div style="padding: 10px; background: var(--bg-secondary); border-radius: 5px;">
+            <div style="font-size: 11px; color: #8b949e; margin-bottom: 5px;">Active Tasks</div>
+            <div style="font-size: 16px; font-weight: bold;" id="active-tasks">-</div>
+        </div>
+        <div style="padding: 10px; background: var(--bg-secondary); border-radius: 5px;">
+            <div style="font-size: 11px; color: #8b949e; margin-bottom: 5px;">Scripts Library</div>
+            <div style="font-size: 16px; font-weight: bold;" id="total-scripts">-</div>
+        </div>
+    </div>
+</div>
+
+<!-- Monitoring Settings -->
+<div class="card" style="margin-top: 20px;">
+    <h2 style="margin-bottom: 15px; display: flex; align-items: center;">
+        <span>🔍 Monitoring Settings</span>
+        <span style="margin-left: auto; font-size: 12px; font-weight: normal; color: #8b949e;">
+            Controls host monitoring behavior
+        </span>
+    </h2>
     <div id="monitoring-settings"></div>
 </div>
 
+<!-- Task Execution Settings -->
 <div class="card" style="margin-top: 20px;">
-    <h2 style="margin-bottom: 20px;">Task Execution Settings</h2>
+    <h2 style="margin-bottom: 15px; display: flex; align-items: center;">
+        <span>⚙️ Task Execution Settings</span>
+        <span style="margin-left: auto; font-size: 12px; font-weight: normal; color: #8b949e;">
+            Controls task execution limits and timeouts
+        </span>
+    </h2>
     <div id="task-settings"></div>
 </div>
 
+<!-- GSocket Settings -->
 <div class="card" style="margin-top: 20px;">
-    <h2 style="margin-bottom: 20px;">GSocket Settings</h2>
+    <h2 style="margin-bottom: 15px; display: flex; align-items: center;">
+        <span>🔌 GSocket Settings</span>
+        <span style="margin-left: auto; font-size: 12px; font-weight: normal; color: #8b949e;">
+            GSocket connection parameters
+        </span>
+    </h2>
     <div id="gsocket-settings"></div>
 </div>
 
+<!-- Maintenance Settings -->
 <div class="card" style="margin-top: 20px;">
-    <h2 style="margin-bottom: 20px;">Maintenance Settings</h2>
+    <h2 style="margin-bottom: 15px; display: flex; align-items: center;">
+        <span>🧹 Maintenance Settings</span>
+        <span style="margin-left: auto; font-size: 12px; font-weight: normal; color: #8b949e;">
+            Data retention and cleanup settings
+        </span>
+    </h2>
     <div id="maintenance-settings"></div>
+</div>
+
+<!-- Security Settings -->
+<div class="card" style="margin-top: 20px;">
+    <h2 style="margin-bottom: 15px; display: flex; align-items: center;">
+        <span>🔒 Security Settings</span>
+        <span style="margin-left: auto; font-size: 12px; font-weight: normal; color: #8b949e;">
+            Security and authentication settings
+        </span>
+    </h2>
+    <div id="security-settings"></div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 let allSettings = {};
+let originalSettings = {};
+let modifiedSettings = new Set();
+
+// Default values for settings
+const DEFAULT_VALUES = {
+    // Monitoring
+    'host_check_interval': 180,
+    'ping_timeout': 10,
+    'monitor_offline_threshold': 3,
+    // Tasks
+    'max_concurrent_tasks': 150,
+    'default_task_timeout': 300,
+    'task_retry_attempts': 3,
+    // GSocket
+    'default_gsocket_wait': 10,
+    'gsocket_max_retries': 3,
+    // Maintenance
+    'log_retention_days': 90,
+    'task_retention_days': 180,
+    'auto_cleanup_enabled': true,
+    // Security
+    'session_timeout': 86400,
+    'max_login_attempts': 5,
+    'require_strong_passwords': true
+};
 
 async function loadSettings() {
     try {
         allSettings = await apiRequest('/api/settings');
+        originalSettings = JSON.parse(JSON.stringify(allSettings)); // Deep copy
+        modifiedSettings.clear();
         displaySettings();
+        await loadSystemInfo();
+        updateSaveAllButton();
     } catch (error) {
         showError('Failed to load settings: ' + error.message);
+    }
+}
+
+async function loadSystemInfo() {
+    try {
+        // Load hosts
+        const hosts = await apiRequest('/api/hosts');
+        document.getElementById('total-hosts').textContent = hosts.length;
+
+        // Load tasks
+        const tasks = await apiRequest('/api/tasks?limit=1000');
+        const activeTasks = tasks.filter(t => t.status === 'running' || t.status === 'pending');
+        document.getElementById('active-tasks').textContent = activeTasks.length;
+
+        // Load scripts
+        const scripts = await apiRequest('/api/scripts');
+        document.getElementById('total-scripts').textContent = scripts.length;
+
+        // App version
+        document.getElementById('app-version').textContent = 'v1.0.0';
+    } catch (error) {
+        console.error('Failed to load system info:', error);
     }
 }
 
@@ -49,12 +168,13 @@ function displaySettings() {
         monitoring: document.getElementById('monitoring-settings'),
         tasks: document.getElementById('task-settings'),
         gsocket: document.getElementById('gsocket-settings'),
-        maintenance: document.getElementById('maintenance-settings')
+        maintenance: document.getElementById('maintenance-settings'),
+        security: document.getElementById('security-settings')
     };
 
     // Clear all containers
     Object.values(categories).forEach(container => {
-        container.innerHTML = '';
+        if (container) container.innerHTML = '';
     });
 
     // Group settings by category
@@ -64,28 +184,68 @@ function displaySettings() {
 
         const settingDiv = document.createElement('div');
         settingDiv.className = 'form-group';
-        settingDiv.style.marginBottom = '15px';
+        settingDiv.style.marginBottom = '20px';
+        settingDiv.style.padding = '15px';
+        settingDiv.style.background = 'var(--bg-secondary)';
+        settingDiv.style.borderRadius = '5px';
+        settingDiv.style.border = '1px solid var(--border-color)';
 
-        // Create input with proper attributes based on type
+        const defaultValue = DEFAULT_VALUES[key];
+        const isModified = modifiedSettings.has(key);
+        const isDefault = data.value == defaultValue;
+
+        // Create input based on type
+        let inputHTML = '';
         const inputType = getInputType(data.value_type);
-        const inputAttrs = inputType === 'checkbox'
-            ? `type="checkbox" ${data.value ? 'checked' : ''}`
-            : `type="${inputType}" value="${data.value}"`;
+
+        if (inputType === 'checkbox') {
+            inputHTML = `
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input
+                        type="checkbox"
+                        ${data.value ? 'checked' : ''}
+                        id="setting-${key}"
+                        onchange="markAsModified('${key}')"
+                        style="margin-right: 10px;"
+                    >
+                    <span>${formatKey(key)}</span>
+                </label>
+            `;
+        } else {
+            inputHTML = `
+                <label class="form-label" style="margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;">
+                    <span>${formatKey(key)}</span>
+                    ${isModified ? '<span style="color: #f85149; font-size: 11px;">• Modified</span>' : ''}
+                    ${!isDefault && !isModified ? '<span style="color: #f0883e; font-size: 11px;">• Custom Value</span>' : ''}
+                </label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input
+                        type="${inputType}"
+                        value="${data.value}"
+                        id="setting-${key}"
+                        class="form-input"
+                        oninput="markAsModified('${key}')"
+                        style="flex: 1;"
+                        ${inputType === 'number' ? 'min="1"' : ''}
+                    >
+                    <button class="btn btn-small btn-primary" onclick="updateSetting('${key}')" title="Save this setting">
+                        Save
+                    </button>
+                    ${defaultValue !== undefined ? `
+                        <button class="btn btn-small" onclick="resetToDefault('${key}')" title="Reset to default: ${defaultValue}">
+                            Reset
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        }
 
         settingDiv.innerHTML = `
-            <label class="form-label">${formatKey(key)}</label>
-            <div style="display: flex; gap: 10px; align-items: center;">
-                <input
-                    ${inputAttrs}
-                    id="setting-${key}"
-                    class="form-input"
-                    style="flex: 1;"
-                >
-                <button class="btn btn-small" onclick="updateSetting('${key}')">Save</button>
-            </div>
-            <small style="color: #8b949e; font-size: 12px; margin-top: 5px; display: block;">
+            ${inputHTML}
+            <div style="margin-top: 8px; font-size: 12px; color: #8b949e;">
                 ${data.description || ''}
-            </small>
+                ${defaultValue !== undefined ? `<br><span style="font-size: 11px;">Default: ${defaultValue}</span>` : ''}
+            </div>
         `;
 
         container.appendChild(settingDiv);
@@ -104,6 +264,42 @@ function getInputType(valueType) {
     return 'text';
 }
 
+function markAsModified(key) {
+    const input = document.getElementById(`setting-${key}`);
+    const setting = allSettings[key];
+
+    let currentValue;
+    if (setting.value_type === 'bool') {
+        currentValue = input.checked;
+    } else if (setting.value_type === 'int') {
+        currentValue = parseInt(input.value);
+    } else if (setting.value_type === 'float') {
+        currentValue = parseFloat(input.value);
+    } else {
+        currentValue = input.value;
+    }
+
+    // Check if value is different from original
+    if (currentValue != originalSettings[key].value) {
+        modifiedSettings.add(key);
+    } else {
+        modifiedSettings.delete(key);
+    }
+
+    updateSaveAllButton();
+    displaySettings(); // Refresh to update modified indicators
+}
+
+function updateSaveAllButton() {
+    const saveAllBtn = document.getElementById('save-all-btn');
+    if (modifiedSettings.size > 0) {
+        saveAllBtn.style.display = 'inline-block';
+        saveAllBtn.textContent = `Save All Changes (${modifiedSettings.size})`;
+    } else {
+        saveAllBtn.style.display = 'none';
+    }
+}
+
 async function updateSetting(key) {
     const input = document.getElementById(`setting-${key}`);
     const setting = allSettings[key];
@@ -113,18 +309,22 @@ async function updateSetting(key) {
         value = input.checked;
     } else if (setting.value_type === 'int') {
         value = parseInt(input.value);
-        if (isNaN(value)) {
-            showError('Invalid number');
+        if (isNaN(value) || value < 1) {
+            showError('Invalid number. Value must be at least 1.');
             return;
         }
     } else if (setting.value_type === 'float') {
         value = parseFloat(input.value);
-        if (isNaN(value)) {
-            showError('Invalid number');
+        if (isNaN(value) || value < 0) {
+            showError('Invalid number. Value must be positive.');
             return;
         }
     } else {
         value = input.value;
+        if (!value.trim()) {
+            showError('Value cannot be empty.');
+            return;
+        }
     }
 
     try {
@@ -133,11 +333,76 @@ async function updateSetting(key) {
             body: JSON.stringify({ value: value })
         });
 
-        showSuccess(response.message);
-        loadSettings(); // Reload to get updated values
+        showSuccess(`✓ ${formatKey(key)} updated successfully`);
+
+        // Update local state
+        allSettings[key].value = value;
+        originalSettings[key].value = value;
+        modifiedSettings.delete(key);
+
+        displaySettings();
+        updateSaveAllButton();
     } catch (error) {
         showError('Failed to update setting: ' + error.message);
     }
+}
+
+async function resetToDefault(key) {
+    const defaultValue = DEFAULT_VALUES[key];
+    if (defaultValue === undefined) {
+        showError('No default value defined for this setting');
+        return;
+    }
+
+    if (!confirm(`Reset "${formatKey(key)}" to default value: ${defaultValue}?`)) {
+        return;
+    }
+
+    const input = document.getElementById(`setting-${key}`);
+    const setting = allSettings[key];
+
+    if (setting.value_type === 'bool') {
+        input.checked = defaultValue;
+    } else {
+        input.value = defaultValue;
+    }
+
+    // Update the setting
+    await updateSetting(key);
+}
+
+async function saveAllSettings() {
+    if (modifiedSettings.size === 0) {
+        showError('No changes to save');
+        return;
+    }
+
+    const count = modifiedSettings.size;
+    if (!confirm(`Save ${count} modified setting(s)?`)) {
+        return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const key of modifiedSettings) {
+        try {
+            await updateSetting(key);
+            successCount++;
+        } catch (error) {
+            failCount++;
+        }
+    }
+
+    if (failCount === 0) {
+        showSuccess(`✓ All ${successCount} settings saved successfully`);
+    } else {
+        showError(`Saved ${successCount} settings, ${failCount} failed`);
+    }
+
+    modifiedSettings.clear();
+    updateSaveAllButton();
+    displaySettings();
 }
 
 loadSettings();
