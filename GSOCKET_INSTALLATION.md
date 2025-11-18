@@ -1,9 +1,25 @@
 # Installing GSocket in Docker Container
 
-## Problem
-Web terminal fails with error: `[Errno 2] No such file or directory`
+## 🚨 Problem
+Web terminal fails with error: `[Errno 2] No such file or directory: 'gs-netcat'`
+
+Monitor service logs show: `FileNotFoundError: [Errno 2] No such file or directory: 'gs-netcat'`
 
 This happens because `gs-netcat` is not installed in the Docker container.
+
+## ⚠️ CRITICAL: Images Must Be Rebuilt!
+
+**The Dockerfile includes gsocket installation, but you MUST rebuild Docker images for it to take effect!**
+
+📖 **See [REBUILD_REQUIRED.md](REBUILD_REQUIRED.md) for detailed step-by-step instructions.**
+
+### Quick Fix
+
+```bash
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+```
 
 ## Solution
 
