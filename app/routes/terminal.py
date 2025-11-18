@@ -120,8 +120,9 @@ async def websocket_terminal(
                         data = await process.stderr.read(1024)
                         if not data:
                             break
+                        # Send stderr as info, not error (gs-netcat uses stderr for info messages)
                         await websocket.send_json({
-                            "type": "error",
+                            "type": "info",
                             "data": data.decode('utf-8', errors='replace')
                         })
                 except Exception as e:

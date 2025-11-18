@@ -317,6 +317,11 @@ function connect() {
                     term.write(message.data);
                     break;
 
+                case 'info':
+                    // Info messages from gs-netcat (stderr) - display but don't change status
+                    term.write(`\x1b[90m${message.data}\x1b[0m`);
+                    break;
+
                 case 'error':
                     term.writeln(`\x1b[1;31m${message.data}\x1b[0m`);
                     updateStatus('Error', 'red');
