@@ -49,3 +49,45 @@ def logout(current_user: User = Depends(get_current_user)):
 def get_auth_status(current_user: User = Depends(get_current_user)):
     """Get current authentication status"""
     return current_user
+
+
+@router.post("/change-password")
+def change_password(
+    request: dict,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Change user password"""
+    from app.utils.auth import verify_password, get_password_hash
+
+    current_password = request.get("current_password")
+    new_password = request.get("new_password")
+
+    if not current_password or not new_password:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password and new password are required"
+        )
+
+    # Verify current password
+    if not verify_password(current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Current password is incorrect"
+        )
+
+    # Validate new password strength
+    if len(new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 8 characters long"
+        )
+
+    # Update password
+    current_user.password_hash = get_password_hash(new_password)
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Password changed successfully"
+    }

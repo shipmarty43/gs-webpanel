@@ -18,6 +18,33 @@
 <div id="error-message" class="error-message" style="display: none;"></div>
 <div id="success-message" class="success-message" style="display: none;"></div>
 
+<!-- Security & Account -->
+<div class="card">
+    <h2 style="margin-bottom: 15px; display: flex; align-items: center;">
+        <span>🔐 Security & Account</span>
+    </h2>
+
+    <div style="max-width: 600px;">
+        <h3 style="margin-bottom: 10px; font-size: 14px; color: #c9d1d9;">Change Password</h3>
+        <form id="change-password-form" onsubmit="handleChangePassword(event)">
+            <div class="form-group">
+                <label class="form-label">Current Password *</label>
+                <input type="password" class="form-input" id="current-password" required autocomplete="current-password">
+            </div>
+            <div class="form-group">
+                <label class="form-label">New Password *</label>
+                <input type="password" class="form-input" id="new-password" required autocomplete="new-password" minlength="8">
+                <small style="color: #8b949e; font-size: 12px;">Minimum 8 characters</small>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Confirm New Password *</label>
+                <input type="password" class="form-input" id="confirm-password" required autocomplete="new-password" minlength="8">
+            </div>
+            <button type="submit" class="btn btn-primary">Change Password</button>
+        </form>
+    </div>
+</div>
+
 <!-- System Information -->
 <div class="card">
     <h2 style="margin-bottom: 15px; display: flex; align-items: center;">
@@ -403,6 +430,46 @@ async function saveAllSettings() {
     modifiedSettings.clear();
     updateSaveAllButton();
     displaySettings();
+}
+
+// Handle password change
+async function handleChangePassword(event) {
+    event.preventDefault();
+
+    const currentPassword = document.getElementById('current-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+
+    // Validate passwords match
+    if (newPassword !== confirmPassword) {
+        showError('New passwords do not match');
+        return;
+    }
+
+    // Validate password length
+    if (newPassword.length < 8) {
+        showError('Password must be at least 8 characters long');
+        return;
+    }
+
+    try {
+        const response = await apiRequest('/api/auth/change-password', {
+            method: 'POST',
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        });
+
+        if (response.success) {
+            showSuccess('✓ Password changed successfully');
+            document.getElementById('change-password-form').reset();
+        } else {
+            showError('Failed to change password');
+        }
+    } catch (error) {
+        showError('Failed to change password: ' + error.message);
+    }
 }
 
 loadSettings();
