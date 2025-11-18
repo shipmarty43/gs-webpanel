@@ -441,6 +441,46 @@ async function bulkCheckHosts() {
     setTimeout(loadHosts, 2000);
 }
 
+// Clean ANSI escape sequences and extract hostname
+function cleanHostnameOutput(output) {
+    if (!output) return null;
+
+    // Remove all ANSI escape sequences
+    let cleaned = output
+        // Remove bash non-printing markers
+        .replace(/\\\[/g, '').replace(/\\\]/g, '')
+        // Remove OSC sequences (terminal titles)
+        .replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, '')
+        // Remove bracketed paste mode
+        .replace(/\x1b\[\?[0-9;]*[hl]/g, '')
+        // Remove all CSI sequences
+        .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+        // Remove any remaining escape sequences
+        .replace(/\x1b./g, '')
+        // Remove carriage returns
+        .replace(/\r/g, '');
+
+    // Split into lines and find the hostname
+    const lines = cleaned.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+
+    // Look for the line after "hostname" command
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        // Skip lines that contain shell prompts, "hostname" command itself, or "exit"
+        if (line.includes('$') || line.includes('#') ||
+            line === 'hostname' || line === 'exit') {
+            continue;
+        }
+        // Return the first non-prompt, non-command line
+        // This should be the actual hostname
+        if (line.length > 0 && !line.includes('@')) {
+            return line;
+        }
+    }
+
+    return null;
+}
+
 // Get hostname from host
 async function getHostname(hostId, displayName) {
     try {
@@ -457,10 +497,31 @@ async function getHostname(hostId, displayName) {
         });
 
         if (result.success && result.output) {
-            const hostname = result.output.trim();
-            showSuccess(`Hostname для ${displayName}: ${hostname}`);
+            const hostname = cleanHostnameOutput(result.output);
+
+            if (hostname) {
+                // Update hostname in database
+                try {
+                    await apiRequest(`/api/hosts/${hostId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({
+                            hostname: hostname
+                        })
+                    });
+
+                    showSuccess(`✓ Hostname обновлён: ${hostname}`);
+
+                    // Reload hosts to show updated hostname
+                    setTimeout(loadHosts, 1000);
+                } catch (updateError) {
+                    // If update fails (e.g., hostname already exists), just show the hostname
+                    showSuccess(`Hostname: ${hostname} (не обновлён: ${updateError.message})`);
+                }
+            } else {
+                showError(`Не удалось извлечь hostname из вывода`);
+            }
         } else {
-            showError(`Не удалось получить hostname для ${displayName}`);
+            showError(`Не удалось получить hostname для ${displayName}: ${result.error || 'неизвестная ошибка'}`);
         }
     } catch (error) {
         showError(`Ошибка получения hostname: ${error.message}`);
