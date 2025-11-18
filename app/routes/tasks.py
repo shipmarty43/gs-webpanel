@@ -248,19 +248,28 @@ async def quick_execute_command(
             custom_gsrn_server=host.custom_gsrn_server
         )
 
+        # Determine success based on exit code
+        exit_code = result.get("exit_code", -1)
+        success = exit_code == 0
+        stderr = result.get("stderr", "")
+
+        # Check for connection errors
+        if "Connection failed" in stderr or "not reachable" in stderr:
+            success = False
+
         logger_service.info(
             db,
-            f"Quick execute on {host.hostname}: {command}",
+            f"Quick execute on {host.hostname}: {command} (exit_code: {exit_code})",
             category="execution",
             host_id=host.id
         )
 
         return {
-            "success": result["success"],
+            "success": success,
             "output": result.get("stdout", ""),
-            "error": result.get("stderr", ""),
-            "exit_code": result.get("exit_code"),
-            "message": result.get("message", "")
+            "error": stderr,
+            "exit_code": exit_code,
+            "message": "Command executed successfully" if success else "Command failed"
         }
 
     except Exception as e:
