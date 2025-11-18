@@ -38,6 +38,18 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr style="background: rgba(127, 231, 135, 0.1);">
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + Shift + C</td>
+                        <td style="padding: 8px;"><strong>Copy selected text to clipboard</strong></td>
+                    </tr>
+                    <tr style="background: rgba(127, 231, 135, 0.1);">
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + Shift + V</td>
+                        <td style="padding: 8px;"><strong>Paste from clipboard</strong></td>
+                    </tr>
+                    <tr style="background: rgba(127, 231, 135, 0.1);">
+                        <td style="padding: 8px; font-family: monospace;">Right Click</td>
+                        <td style="padding: 8px;"><strong>Copy selection or paste</strong></td>
+                    </tr>
                     <tr>
                         <td style="padding: 8px; font-family: monospace;">Ctrl + C</td>
                         <td style="padding: 8px;">Send interrupt signal (SIGINT)</td>
@@ -122,8 +134,12 @@
             </table>
 
             <div style="margin-top: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 5px; font-size: 13px;">
-                <strong>Note:</strong> All shortcuts are passed through to the remote shell. GSocket commands
-                starting with ~ must be typed at the beginning of a new line.
+                <strong>Note:</strong><br>
+                • Use <strong>Ctrl+Shift+C/V</strong> for clipboard copy/paste (browser shortcuts)<br>
+                • Use <strong>Ctrl+C/D/Z</strong> for terminal control (sent to remote shell)<br>
+                • <strong>Right-click</strong> to copy selected text or paste from clipboard<br>
+                • All terminal shortcuts (Ctrl+A/E/K/U/W/Y, etc.) are passed through to the remote shell<br>
+                • GSocket commands starting with ~ must be typed at the beginning of a new line
             </div>
         </div>
     </div>
@@ -199,6 +215,54 @@ function initTerminal() {
     term.onData((data) => {
         if (socket && socket.readyState === WebSocket.OPEN) {
             socket.send(data);
+        }
+    });
+
+    // Handle keyboard shortcuts
+    term.attachCustomKeyEventHandler((event) => {
+        // Ctrl+Shift+C: Copy selected text
+        if (event.ctrlKey && event.shiftKey && event.key === 'C') {
+            const selection = term.getSelection();
+            if (selection) {
+                navigator.clipboard.writeText(selection);
+                return false; // Prevent default
+            }
+        }
+
+        // Ctrl+Shift+V: Paste from clipboard
+        if (event.ctrlKey && event.shiftKey && event.key === 'V') {
+            navigator.clipboard.readText().then(text => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(text);
+                }
+            });
+            return false; // Prevent default
+        }
+
+        // Allow all other keys to be processed normally
+        return true;
+    });
+
+    // Right-click context menu for copy/paste
+    const terminalContainer = document.getElementById('terminal-container');
+    terminalContainer.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+
+        const selection = term.getSelection();
+        if (selection) {
+            // If there's selected text, copy it
+            navigator.clipboard.writeText(selection);
+            term.writeln('\r\n\x1b[90m[Copied to clipboard]\x1b[0m');
+            term.clearSelection();
+        } else {
+            // If no selection, paste from clipboard
+            navigator.clipboard.readText().then(text => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(text);
+                }
+            }).catch(err => {
+                console.error('Failed to paste:', err);
+            });
         }
     });
 
