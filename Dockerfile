@@ -13,27 +13,22 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install gsocket tools (gs-netcat, etc.)
-# Using static binary releases for fast and reliable installation
+# Download static binaries directly from GitHub releases
 RUN set -ex && \
     ARCH=$(uname -m) && \
     echo "Detected architecture: $ARCH" && \
     if [ "$ARCH" = "x86_64" ]; then \
-        GSOCKET_URL="https://github.com/hackerschoice/gsocket/releases/download/v1.4.43/gsocket_1.4.43_linux-x86_64.tar.gz"; \
+        GSOCKET_BINARY="gs-netcat_linux-x86_64"; \
     elif [ "$ARCH" = "aarch64" ]; then \
-        GSOCKET_URL="https://github.com/hackerschoice/gsocket/releases/download/v1.4.43/gsocket_1.4.43_linux-aarch64.tar.gz"; \
+        GSOCKET_BINARY="gs-netcat_linux-aarch64"; \
     else \
         echo "ERROR: Unsupported architecture: $ARCH" >&2; \
         exit 1; \
     fi && \
+    GSOCKET_URL="https://github.com/hackerschoice/gsocket/releases/download/v1.4.43/${GSOCKET_BINARY}" && \
     echo "Downloading gsocket from: $GSOCKET_URL" && \
-    curl -fsSL --retry 3 --retry-delay 2 "$GSOCKET_URL" -o /tmp/gsocket.tar.gz && \
-    echo "Download complete. Extracting..." && \
-    mkdir -p /tmp/gsocket && \
-    tar -xzf /tmp/gsocket.tar.gz -C /tmp/gsocket && \
-    echo "Installing binaries..." && \
-    find /tmp/gsocket -name 'gs-*' -type f -exec mv {} /usr/local/bin/ \; && \
-    chmod +x /usr/local/bin/gs-* && \
-    rm -rf /tmp/gsocket* && \
+    curl -fsSL --retry 3 --retry-delay 2 "$GSOCKET_URL" -o /usr/local/bin/gs-netcat && \
+    chmod +x /usr/local/bin/gs-netcat && \
     echo "Verifying installation..." && \
     which gs-netcat && gs-netcat -h | head -5 && \
     echo "gsocket installation successful"
