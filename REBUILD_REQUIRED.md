@@ -57,16 +57,18 @@ This will:
 Expected output:
 ```
 Building web
-[+] Building 180.5s (15/15) FINISHED
+[+] Building 45.2s (15/15) FINISHED
  => [internal] load build definition from Dockerfile
  => => transferring dockerfile: 1.23kB
  => [internal] load .dockerignore
  => ...
- => [7/10] RUN curl -fsSL https://gsocket.io/x | bash
+ => [7/10] RUN ARCH=$(uname -m) && ...
  => ...
 Successfully built abc123def456
 Successfully tagged gs-webpanel_web:latest
 ```
+
+Build time: ~30-60 seconds (using pre-built static binaries)
 
 **Option B: Quick Rebuild (if you're sure cache is clean)**
 ```bash
@@ -257,10 +259,22 @@ Rebuild is **NOT** required for:
 
 Recent changes that require rebuild:
 
-### Commit 077db47 (2024-11-17)
-- Added gsocket installation: `RUN curl -fsSL https://gsocket.io/x | bash`
-- Added dependencies: bash, make, openssl, libssl-dev
+### Commit 7b476b8 (2025-11-18)
+- **LATEST:** Uses static binary releases from GitHub
+- Supports x86_64 and aarch64 architectures
+- Much faster build time (~30-60 seconds)
+- More reliable installation method
 - **REBUILD REQUIRED** for web terminal to work
+
+### Commit 1519325 (2025-11-18)
+- Changed to building from source
+- Added build dependencies: g++, autoconf, automake, libtool
+- **SUPERSEDED** by static binary approach
+
+### Commit 077db47 (2024-11-17)
+- Initial gsocket installation attempt: `RUN curl -fsSL https://gsocket.io/x | bash`
+- Added dependencies: bash, make, openssl, libssl-dev
+- **SUPERSEDED** - curl installer didn't work reliably in Docker
 
 ### How to Check if Rebuild is Needed
 
@@ -276,9 +290,9 @@ docker exec c2-panel-web which gs-netcat 2>/dev/null
 
 ### Issue: Rebuild takes too long
 
-**Cause:** Downloading and compiling gsocket
-**Time:** 3-5 minutes is normal
-**Solution:** Be patient, it's a one-time operation
+**Normal build time:** 30-60 seconds (using static binary releases)
+**If taking longer:** Check network connection or Docker cache
+**Solution:** Be patient, downloading binaries from GitHub
 
 ### Issue: Build fails with network errors
 
@@ -348,7 +362,7 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
-**Time required:** 3-5 minutes
+**Time required:** 30-60 seconds (using static binary releases)
 
 **After rebuild:**
 - ✅ Web terminal works

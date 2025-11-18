@@ -28,8 +28,10 @@ The Dockerfile has been updated to automatically install gsocket tools.
 ### What Changed
 
 **Dockerfile:**
-- Added system dependencies: `bash`, `make`, `openssl`, `libssl-dev`
-- Enabled gsocket installation: `RUN curl -fsSL https://gsocket.io/x | bash`
+- Downloads pre-built static binaries from GitHub releases
+- Supports x86_64 and aarch64 architectures
+- Fast installation (~30 seconds vs building from source)
+- More reliable than curl installer
 
 ### How to Apply
 
@@ -86,13 +88,17 @@ docker exec -it c2-panel-web which gs-netcat
 
 ## GSocket Installation Details
 
-The gsocket installer (`https://gsocket.io/x`) installs:
+The static binary release includes:
 - `gs-netcat` - Main tool for connecting to remote shells
 - `gs-sftp` - Secure file transfer
 - `gs-mount` - Remote file system mounting
 - `blitz` - Additional tools
 
-Installation location: `/usr/local/bin/`
+**Installation method:**
+- Downloads pre-built static binaries from GitHub releases
+- Detects architecture automatically (x86_64/aarch64)
+- Extracts to `/usr/local/bin/`
+- No compilation required - fast and reliable
 
 ## Next Steps
 
