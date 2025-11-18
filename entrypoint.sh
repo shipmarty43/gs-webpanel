@@ -43,6 +43,16 @@ else
     python3 scripts/migrate_db.py
     echo ""
 
+    # Initialize settings (safe to run multiple times - skips existing)
+    echo "→ Initializing/updating settings..."
+    python3 scripts/init_settings.py
+    echo ""
+
+    # Initialize example scripts (safe to run multiple times - skips existing)
+    echo "→ Initializing/updating example scripts..."
+    python3 scripts/init_example_scripts.py
+    echo ""
+
     # Check if there are any users
     USER_COUNT=$(python3 -c "
 from app.database import SessionLocal

@@ -253,6 +253,67 @@ function closeTaskResultsModal() {
     document.getElementById('task-results-modal').classList.remove('active');
 }
 
+// Convert ANSI color codes to HTML
+function ansiToHtml(text) {
+    if (!text) return text;
+
+    // ANSI color code map
+    const ansiColors = {
+        '0': 'reset',
+        '1': 'bold',
+        '30': 'color: #484f58',      // black
+        '31': 'color: #ff7b72',      // red
+        '32': 'color: #7ee787',      // green
+        '33': 'color: #ffa657',      // yellow
+        '34': 'color: #79c0ff',      // blue
+        '35': 'color: #d2a8ff',      // magenta
+        '36': 'color: #a5d6ff',      // cyan
+        '37': 'color: #b1bac4',      // white
+        '90': 'color: #6e7681',      // bright black
+        '91': 'color: #ffa198',      // bright red
+        '92': 'color: #56d364',      // bright green
+        '93': 'color: #e3b341',      // bright yellow
+        '94': 'color: #79c0ff',      // bright blue
+        '95': 'color: #d2a8ff',      // bright magenta
+        '96': 'color: #a5d6ff',      // bright cyan
+        '97': 'color: #f0f6fc'       // bright white
+    };
+
+    // Replace ANSI escape sequences with HTML spans
+    let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\x1b\[([0-9;]+)m/g, (match, codes) => {
+            const codeList = codes.split(';');
+            let styles = [];
+
+            for (const code of codeList) {
+                if (code === '0') {
+                    return '</span>';
+                } else if (code === '1') {
+                    styles.push('font-weight: bold');
+                } else if (ansiColors[code]) {
+                    styles.push(ansiColors[code]);
+                }
+            }
+
+            if (styles.length > 0) {
+                return `<span style="${styles.join('; ')}">`;
+            }
+            return '';
+        });
+
+    // Close any unclosed spans
+    const openSpans = (html.match(/<span/g) || []).length;
+    const closeSpans = (html.match(/<\/span>/g) || []).length;
+    for (let i = 0; i < openSpans - closeSpans; i++) {
+        html += '</span>';
+    }
+
+    return html;
+}
+
 function viewFullOutput(resultIndex, hostname) {
     const result = currentTaskResults[resultIndex];
     if (!result) return;
@@ -266,8 +327,13 @@ function viewFullOutput(resultIndex, hostname) {
     };
 
     document.getElementById('output-modal-title').textContent = `Output: ${hostname}`;
-    document.getElementById('output-stdout').textContent = currentOutputData.stdout;
-    document.getElementById('output-stderr').textContent = currentOutputData.stderr;
+
+    // Convert ANSI to HTML and display
+    const stdoutEl = document.getElementById('output-stdout');
+    const stderrEl = document.getElementById('output-stderr');
+
+    stdoutEl.innerHTML = ansiToHtml(currentOutputData.stdout);
+    stderrEl.innerHTML = ansiToHtml(currentOutputData.stderr);
 
     document.getElementById('full-output-modal').classList.add('active');
 }

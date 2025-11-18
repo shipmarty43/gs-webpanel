@@ -6,6 +6,7 @@
 <div class="flex justify-between align-center mb-20">
     <h1 class="card-title">Web Terminal - Host #{{ host_id }}</h1>
     <div>
+        <button class="btn btn-small" onclick="showShortcuts()">Shortcuts</button>
         <button class="btn btn-small" onclick="reconnect()">Reconnect</button>
         <button class="btn btn-small" onclick="clearTerminal()">Clear</button>
         <a href="/hosts" class="btn btn-small">Back to Hosts</a>
@@ -18,6 +19,114 @@
 
 <div id="status" style="margin-top: 10px; padding: 10px; background: #161b22; border-radius: 6px;">
     <span id="connection-status">Connecting...</span>
+</div>
+
+<!-- Shortcuts Modal -->
+<div id="shortcuts-modal" class="modal">
+    <div class="modal-content" style="max-width: 800px;">
+        <div class="modal-header">
+            <h2 class="modal-title">GSocket Terminal Shortcuts</h2>
+            <button class="modal-close" onclick="closeShortcuts()">&times;</button>
+        </div>
+        <div style="padding: 20px;">
+            <h3 style="margin-bottom: 15px; color: #7ee787;">Terminal Shortcuts</h3>
+            <table style="width: 100%; margin-bottom: 20px;">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding: 8px; background: var(--bg-secondary);">Shortcut</th>
+                        <th style="text-align: left; padding: 8px; background: var(--bg-secondary);">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + C</td>
+                        <td style="padding: 8px;">Send interrupt signal (SIGINT)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + D</td>
+                        <td style="padding: 8px;">Send EOF / Exit shell</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + Z</td>
+                        <td style="padding: 8px;">Suspend current process (SIGTSTP)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + L</td>
+                        <td style="padding: 8px;">Clear screen</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + A</td>
+                        <td style="padding: 8px;">Move cursor to start of line</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + E</td>
+                        <td style="padding: 8px;">Move cursor to end of line</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + K</td>
+                        <td style="padding: 8px;">Cut text from cursor to end of line</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + U</td>
+                        <td style="padding: 8px;">Cut text from cursor to start of line</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + W</td>
+                        <td style="padding: 8px;">Cut previous word</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">Ctrl + Y</td>
+                        <td style="padding: 8px;">Paste cut text</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">Tab</td>
+                        <td style="padding: 8px;">Auto-complete</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">↑ / ↓</td>
+                        <td style="padding: 8px;">Navigate command history</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 style="margin-bottom: 15px; margin-top: 25px; color: #ffa657;">GSocket Specific</h3>
+            <table style="width: 100%;">
+                <thead>
+                    <tr>
+                        <th style="text-align: left; padding: 8px; background: var(--bg-secondary);">Command</th>
+                        <th style="text-align: left; padding: 8px; background: var(--bg-secondary);">Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">~.</td>
+                        <td style="padding: 8px;">Disconnect from GSocket (enter tilde dot)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">~C</td>
+                        <td style="padding: 8px;">Open GSocket command mode</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">~#</td>
+                        <td style="padding: 8px;">Show connection statistics</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">~s</td>
+                        <td style="padding: 8px;">Show socket information</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px; font-family: monospace;">~^Z</td>
+                        <td style="padding: 8px;">Background GSocket connection</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="margin-top: 20px; padding: 15px; background: var(--bg-secondary); border-radius: 5px; font-size: 13px;">
+                <strong>Note:</strong> All shortcuts are passed through to the remote shell. GSocket commands
+                starting with ~ must be typed at the beginning of a new line.
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Include xterm.js from CDN -->
@@ -40,6 +149,10 @@ function initTerminal() {
         cursorBlink: true,
         fontSize: 14,
         fontFamily: 'JetBrains Mono, Fira Code, Consolas, monospace',
+        allowProposedApi: true,
+        allowTransparency: false,
+        convertEol: true,
+        scrollback: 10000,
         theme: {
             background: '#0d1117',
             foreground: '#c9d1d9',
@@ -201,6 +314,16 @@ function clearTerminal() {
     term.writeln('\x1b[1;32mGSocket Web Terminal\x1b[0m');
     term.writeln('\x1b[90m' + '='.repeat(60) + '\x1b[0m');
     term.writeln('');
+}
+
+// Show shortcuts modal
+function showShortcuts() {
+    document.getElementById('shortcuts-modal').classList.add('active');
+}
+
+// Close shortcuts modal
+function closeShortcuts() {
+    document.getElementById('shortcuts-modal').classList.remove('active');
 }
 
 // Cleanup on page unload
