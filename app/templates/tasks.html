@@ -257,10 +257,31 @@ function closeTaskResultsModal() {
 function ansiToHtml(text) {
     if (!text) return text;
 
+    // First, escape HTML special characters
+    let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    // Remove bash-specific non-printing markers \[ and \]
+    html = html.replace(/\\\[/g, '').replace(/\\\]/g, '');
+
+    // Remove OSC (Operating System Command) sequences - ESC ] ... BEL or ESC ] ... ST
+    // This handles things like ]0;title sequences for terminal titles
+    html = html.replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)/g, '');
+
+    // Remove bracketed paste mode and other private mode sequences
+    html = html.replace(/\x1b\[\?[0-9;]*[hl]/g, '');
+
+    // Remove cursor position, erase sequences, etc. (keep only SGR which is 'm')
+    html = html.replace(/\x1b\[[0-9;]*[ABCDEFGHJKSTfnsu]/g, '');
+
     // ANSI color code map
     const ansiColors = {
         '0': 'reset',
         '1': 'bold',
+        '2': 'dim',
+        '4': 'underline',
         '30': 'color: #484f58',      // black
         '31': 'color: #ff7b72',      // red
         '32': 'color: #7ee787',      // green
@@ -269,7 +290,7 @@ function ansiToHtml(text) {
         '35': 'color: #d2a8ff',      // magenta
         '36': 'color: #a5d6ff',      // cyan
         '37': 'color: #b1bac4',      // white
-        '90': 'color: #6e7681',      // bright black
+        '90': 'color: #6e7681',      // bright black (gray)
         '91': 'color: #ffa198',      // bright red
         '92': 'color: #56d364',      // bright green
         '93': 'color: #e3b341',      // bright yellow
@@ -279,30 +300,34 @@ function ansiToHtml(text) {
         '97': 'color: #f0f6fc'       // bright white
     };
 
-    // Replace ANSI escape sequences with HTML spans
-    let html = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/\x1b\[([0-9;]+)m/g, (match, codes) => {
-            const codeList = codes.split(';');
-            let styles = [];
+    // Replace ANSI SGR sequences with HTML spans
+    html = html.replace(/\x1b\[([0-9;]+)m/g, (match, codes) => {
+        const codeList = codes.split(';');
+        let styles = [];
 
-            for (const code of codeList) {
-                if (code === '0') {
-                    return '</span>';
-                } else if (code === '1') {
-                    styles.push('font-weight: bold');
-                } else if (ansiColors[code]) {
-                    styles.push(ansiColors[code]);
-                }
+        for (const code of codeList) {
+            if (code === '0') {
+                return '</span>';
+            } else if (code === '1') {
+                styles.push('font-weight: bold');
+            } else if (code === '2') {
+                styles.push('opacity: 0.6');
+            } else if (code === '4') {
+                styles.push('text-decoration: underline');
+            } else if (ansiColors[code]) {
+                styles.push(ansiColors[code]);
             }
+        }
 
-            if (styles.length > 0) {
-                return `<span style="${styles.join('; ')}">`;
-            }
-            return '';
-        });
+        if (styles.length > 0) {
+            return `<span style="${styles.join('; ')}">`;
+        }
+        return '';
+    });
+
+    // Remove any remaining escape sequences
+    html = html.replace(/\x1b\[[0-9;]*m/g, '');
+    html = html.replace(/\x1b./g, '');
 
     // Close any unclosed spans
     const openSpans = (html.match(/<span/g) || []).length;
