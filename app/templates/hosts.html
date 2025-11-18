@@ -9,6 +9,9 @@
         <button class="btn btn-success" id="bulk-check-btn" onclick="bulkCheckHosts()" style="margin-right: 10px; display: none;">
             <span id="bulk-check-count">0</span> Проверить
         </button>
+        <button class="btn" id="bulk-hostname-btn" onclick="bulkGetHostnames()" style="margin-right: 10px; display: none;">
+            <span id="bulk-hostname-count">0</span> Получить Hostname
+        </button>
         <button class="btn btn-primary" id="bulk-script-btn" onclick="showBulkScriptModal()" style="margin-right: 10px; display: none;">
             <span id="bulk-script-count">0</span> Выполнить скрипт
         </button>
@@ -369,17 +372,22 @@ function updateBulkActions() {
     const count = checkboxes.length;
 
     const bulkCheckBtn = document.getElementById('bulk-check-btn');
+    const bulkHostnameBtn = document.getElementById('bulk-hostname-btn');
     const bulkScriptBtn = document.getElementById('bulk-script-btn');
     const bulkCheckCount = document.getElementById('bulk-check-count');
+    const bulkHostnameCount = document.getElementById('bulk-hostname-count');
     const bulkScriptCount = document.getElementById('bulk-script-count');
 
     if (count > 0) {
         bulkCheckBtn.style.display = 'inline-block';
+        bulkHostnameBtn.style.display = 'inline-block';
         bulkScriptBtn.style.display = 'inline-block';
         bulkCheckCount.textContent = count;
+        bulkHostnameCount.textContent = count;
         bulkScriptCount.textContent = count;
     } else {
         bulkCheckBtn.style.display = 'none';
+        bulkHostnameBtn.style.display = 'none';
         bulkScriptBtn.style.display = 'none';
     }
 }
@@ -439,6 +447,87 @@ async function bulkCheckHosts() {
 
     // Reload hosts to update status
     setTimeout(loadHosts, 2000);
+}
+
+// Bulk get hostnames for selected hosts
+async function bulkGetHostnames() {
+    const checkboxes = document.querySelectorAll('.host-checkbox:checked');
+    if (checkboxes.length === 0) {
+        showError('Выберите хосты для получения hostname');
+        return;
+    }
+
+    const hostIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+    const hostsMap = Object.fromEntries(allHosts.map(h => [h.id, h]));
+
+    showSuccess(`Получение hostname для ${hostIds.length} хостов...`);
+
+    let successCount = 0;
+    let failCount = 0;
+    let skippedCount = 0;
+    const results = [];
+
+    for (const hostId of hostIds) {
+        const host = hostsMap[hostId];
+        if (!host) continue;
+
+        try {
+            // Execute hostname command
+            const result = await apiRequest('/api/tasks/quick-execute', {
+                method: 'POST',
+                body: JSON.stringify({
+                    host_id: hostId,
+                    command: 'hostname',
+                    timeout: 10
+                })
+            });
+
+            if (result.success && result.output) {
+                const hostname = cleanHostnameOutput(result.output);
+
+                if (hostname) {
+                    // Try to update hostname in database
+                    try {
+                        await apiRequest(`/api/hosts/${hostId}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({
+                                hostname: hostname
+                            })
+                        });
+                        successCount++;
+                        results.push(`✓ ${host.hostname} → ${hostname}`);
+                    } catch (updateError) {
+                        // Hostname already exists or other error
+                        skippedCount++;
+                        results.push(`⊘ ${host.hostname}: ${hostname} (${updateError.message})`);
+                    }
+                } else {
+                    failCount++;
+                    results.push(`✗ ${host.hostname}: не удалось извлечь hostname`);
+                }
+            } else {
+                failCount++;
+                results.push(`✗ ${host.hostname}: ${result.error || 'ошибка выполнения'}`);
+            }
+        } catch (error) {
+            failCount++;
+            results.push(`✗ ${host.hostname}: ${error.message}`);
+        }
+    }
+
+    // Show summary
+    let message = `Получение hostname завершено: ✓ ${successCount} обновлено`;
+    if (skippedCount > 0) message += `, ⊘ ${skippedCount} пропущено`;
+    if (failCount > 0) message += `, ✗ ${failCount} ошибок`;
+
+    showSuccess(message);
+
+    // Log detailed results to console
+    console.log('Bulk Hostname Results:');
+    results.forEach(r => console.log(r));
+
+    // Reload hosts to show updated hostnames
+    setTimeout(loadHosts, 1500);
 }
 
 // Clean ANSI escape sequences and extract hostname
