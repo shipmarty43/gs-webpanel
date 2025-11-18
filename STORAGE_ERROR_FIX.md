@@ -167,7 +167,7 @@ location.reload();
 ```
 chrome://settings/content/all
 
-1. Найдите localhost:3000
+1. Найдите localhost:8000
 2. Нажмите "Clear data"
 3. Опционально: Включите "Clear cookies and site data when you close all windows"
 ```
@@ -268,7 +268,7 @@ chrome://quota-internals/
 ```
 chrome://settings/siteData
 
-1. Найдите localhost:3000
+1. Найдите localhost:8000
 2. Нажмите корзину для удаления
 ```
 

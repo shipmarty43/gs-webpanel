@@ -26,7 +26,7 @@
 
 Альтернативно, можно открыть напрямую:
 ```
-http://localhost:3000/terminal/{host_id}
+http://localhost:8000/terminal/{host_id}
 ```
 
 ### Шаг 2: Подключение

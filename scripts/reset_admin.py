@@ -63,7 +63,7 @@ def main():
         print("=" * 60)
         print("Login Credentials:")
         print("=" * 60)
-        print(f"URL:      http://localhost:3000/login")
+        print(f"URL:      http://localhost:8000/login")
         print(f"Username: admin")
         print(f"Password: {password}")
         print("=" * 60)

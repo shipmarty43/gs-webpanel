@@ -99,7 +99,7 @@ docker-compose logs web | grep "admin user created"
 
 ### 3. Попробовать войти
 
-Откройте: http://localhost:3000/login
+Откройте: http://localhost:8000/login
 
 ```
 Username: admin
@@ -109,7 +109,7 @@ Password: Admin123456!
 ### 4. Тест через API
 
 ```bash
-curl -X POST http://localhost:3000/api/auth/login \
+curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"Admin123456!"}'
 ```

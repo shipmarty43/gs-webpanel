@@ -5,7 +5,7 @@ services:
     build: .
     container_name: c2-panel-web
     ports:
-      - "3000:8000"
+      - "8000:8000"
     volumes:
       - ./data:/app/data
       - ./app:/app/app

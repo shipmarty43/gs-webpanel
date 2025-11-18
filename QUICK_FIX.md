@@ -17,7 +17,7 @@ docker-compose up -d
 docker-compose exec web python3 scripts/reset_admin.py
 
 # 3. Войти с новыми учетными данными
-# URL: http://localhost:3000/login
+# URL: http://localhost:8000/login
 # Username: admin
 # Password: Admin123456!
 ```
@@ -29,7 +29,7 @@ docker-compose exec web python3 scripts/reset_admin.py
 python3 scripts/reset_admin.py
 
 # Войти с учетными данными
-# URL: http://localhost:3000/login
+# URL: http://localhost:8000/login
 # Username: admin
 # Password: Admin123456!
 ```
@@ -50,7 +50,7 @@ docker-compose restart web
 
 После выполнения команд:
 
-1. Откройте http://localhost:3000/login
+1. Откройте http://localhost:8000/login
 2. Введите точно (без ошибок):
    - **Username**: `admin`
    - **Password**: `Admin123456!`
@@ -83,7 +83,7 @@ docker-compose logs web --tail=30
 ### Проверка 3: Тест через curl
 
 ```bash
-curl -X POST http://localhost:3000/api/auth/login \
+curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"Admin123456!"}'
 
@@ -96,7 +96,7 @@ curl -X POST http://localhost:3000/api/auth/login \
 
 ### Проверка 4: Браузер
 
-- Очистите cookies для localhost:3000
+- Очистите cookies для localhost:8000
 - Попробуйте в режиме инкогнито
 - Откройте DevTools (F12) → Console - проверьте ошибки
 - Откройте DevTools (F12) → Network → смотрите что отправляется в /api/auth/login

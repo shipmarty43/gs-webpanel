@@ -234,13 +234,13 @@ class GsocketService:
 2. **Генерация секретов:**
    ```bash
    curl -H "Authorization: Bearer <token>" \
-     http://localhost:3000/api/hosts/utils/generate-secret
+     http://localhost:8000/api/hosts/utils/generate-secret
    ```
 
 3. **Тест подключения:**
    ```bash
    curl -X POST -H "Authorization: Bearer <token>" \
-     http://localhost:3000/api/hosts/1/test-connection
+     http://localhost:8000/api/hosts/1/test-connection
    ```
 
 ### Unit tests (можно добавить)

@@ -48,7 +48,7 @@ docker-compose up -d
 
 # Database and admin user are created automatically
 # Wait 10 seconds, then access:
-# http://localhost:3000/login
+# http://localhost:8000/login
 # Username: admin
 # Password: Admin123456!
 ```
@@ -63,7 +63,7 @@ python3 scripts/init_db.py
 python3 scripts/create_test_admin.py
 
 # 3. Start application
-python -m uvicorn app.main:app --host 0.0.0.0 --port 3000
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 ## Re-initialization
@@ -325,10 +325,10 @@ docker-compose logs web | grep -E "initialized|created"
 
 ```bash
 # Check if API responds
-curl http://localhost:3000/
+curl http://localhost:8000/
 
 # Test login endpoint
-curl -X POST http://localhost:3000/api/auth/login \
+curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"Admin123456!"}'
 ```

@@ -112,7 +112,7 @@ docker-compose up -d
 ```
 
 **Готово!** Панель доступна по адресу:
-- **URL**: http://localhost:3000/login
+- **URL**: http://localhost:8000/login
 - **Логин**: `admin`
 - **Пароль**: `Admin123456!`
 
@@ -165,13 +165,13 @@ python3 scripts/create_test_admin.py
 
 ```bash
 # Запуск web-сервера
-python -m uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
+python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 # Запуск monitor service (в отдельном терминале)
 python -m app.services.monitor_service
 ```
 
-**Доступ к панели**: http://localhost:3000/login
+**Доступ к панели**: http://localhost:8000/login
 - Логин: `admin`
 - Пароль: `Admin123456!`
 
@@ -290,7 +290,7 @@ gs-webpanel/
 Интерактивная документация API доступна по адресу:
 
 ```
-http://localhost:3000/api/docs
+http://localhost:8000/api/docs
 ```
 
 ### Основные эндпоинты:
@@ -491,7 +491,7 @@ relay.example.com:443
 
 ```bash
 # С hot-reload
-uvicorn app.main:app --reload --host 0.0.0.0 --port 3000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Тесты

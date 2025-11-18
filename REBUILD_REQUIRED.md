@@ -174,14 +174,14 @@ Expected:
 ```
 Name                   State    Ports
 --------------------------------------------
-c2-panel-web       Up      0.0.0.0:3000->8000/tcp
+c2-panel-web       Up      0.0.0.0:8000->8000/tcp
 c2-panel-monitor   Up
 ```
 
 ### 2. Test Web Interface
 
 Open browser:
-- URL: http://localhost:3000/login
+- URL: http://localhost:8000/login
 - Login: admin / Admin123456!
 
 ### 3. Test Terminal Feature

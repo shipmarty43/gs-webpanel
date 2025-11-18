@@ -45,7 +45,7 @@ Configure custom GSRN server when adding/editing a host via:
 
 **API:**
 ```bash
-curl -X POST http://localhost:3000/api/hosts \
+curl -X POST http://localhost:8000/api/hosts \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -126,7 +126,7 @@ Examples:
 
 ### Via API
 ```bash
-curl -X POST http://localhost:3000/api/hosts/1/test-connection \
+curl -X POST http://localhost:8000/api/hosts/1/test-connection \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -174,7 +174,7 @@ docker-compose logs web | grep GSRN
 
 Check host configuration:
 ```bash
-curl http://localhost:3000/api/hosts/1 \
+curl http://localhost:8000/api/hosts/1 \
   -H "Authorization: Bearer <token>"
 ```
 
