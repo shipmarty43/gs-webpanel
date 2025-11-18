@@ -66,7 +66,7 @@ def main():
         db.commit()
 
         print(f"\n✓ Admin user '{username}' created successfully!")
-        print(f"✓ You can now login at http://localhost:8000/login")
+        print(f"✓ You can now login at http://localhost:3000/login")
 
     except KeyboardInterrupt:
         print("\n\nCancelled.")

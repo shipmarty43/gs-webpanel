@@ -21,7 +21,7 @@ echo ""
 # Test credentials
 USERNAME="admin"
 PASSWORD="Admin123456!"
-API_URL="http://localhost:8000/api/auth/login"
+API_URL="http://localhost:3000/api/auth/login"
 
 echo -e "${BLUE}→ Testing login endpoint${NC}"
 echo "  URL: $API_URL"
@@ -61,7 +61,7 @@ if [ "$STATUS" = "200" ]; then
 
         # Test token with /api/auth/status
         echo -e "${BLUE}→ Testing token with /api/auth/status...${NC}"
-        STATUS_RESPONSE=$(curl -s -X GET "http://localhost:8000/api/auth/status" \
+        STATUS_RESPONSE=$(curl -s -X GET "http://localhost:3000/api/auth/status" \
           -H "Authorization: Bearer $TOKEN")
 
         echo "User Info:"
@@ -77,7 +77,7 @@ else
     echo ""
     echo "Possible issues:"
     echo "1. Web server not running (check: docker-compose ps)"
-    echo "2. Port 8000 not accessible"
+    echo "2. Port 3000 not accessible"
     echo "3. Database issue"
     echo ""
     echo "Run these commands to debug:"

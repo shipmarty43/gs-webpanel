@@ -35,7 +35,7 @@ def main():
         print("✓ Test admin user created successfully!")
         print("  Username: admin")
         print("  Password: Admin123456!")
-        print("\nYou can login at http://localhost:8000/login")
+        print("\nYou can login at http://localhost:3000/login")
 
     except Exception as e:
         print(f"✗ Failed to create user: {e}")

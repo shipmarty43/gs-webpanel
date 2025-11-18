@@ -198,7 +198,7 @@ main() {
 
         print_success "Deployment completed successfully!"
         echo ""
-        print_info "Panel URL: http://localhost:8000"
+        print_info "Panel URL: http://localhost:3000"
         print_info "Default credentials: admin / Admin123456!"
         echo ""
 

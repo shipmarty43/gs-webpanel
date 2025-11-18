@@ -9,7 +9,7 @@ The admin user has been reset with correct credentials:
 ```
 Username: admin
 Password: Admin123456!
-URL: http://localhost:8000/login
+URL: http://localhost:3000/login
 ```
 
 ### Step-by-Step Verification
@@ -76,7 +76,7 @@ Test the login API endpoint:
 
 ```bash
 # From host machine
-curl -X POST http://localhost:8000/api/auth/login \
+curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"Admin123456!"}'
 ```
@@ -100,7 +100,7 @@ Error response (401 Unauthorized):
 
 Open browser and navigate to:
 ```
-http://localhost:8000/login
+http://localhost:3000/login
 ```
 
 Check browser console (F12 → Console) for errors.
@@ -133,7 +133,7 @@ docker-compose logs -f
 #### Issue 2: Wrong Port
 
 **Symptoms:**
-- Server running but not accessible on port 8000
+- Server running but not accessible on port 3000
 
 **Solution:**
 
@@ -141,18 +141,18 @@ Check what port the server is actually using:
 
 ```bash
 docker-compose ps
-# Look for port mapping like "0.0.0.0:8000->8000/tcp"
+# Look for port mapping like "0.0.0.0:3000->8000/tcp"
 
 # Check if port is in use
 netstat -tlnp | grep 8000
 # or
-lsof -i :8000
+lsof -i :3000
 ```
 
 If port is already in use, modify `docker-compose.yml`:
 ```yaml
 ports:
-  - "8001:8000"  # Use different external port
+  - "8001:3000"  # Use different external port
 ```
 
 Then access: `http://localhost:8001/login`
@@ -260,7 +260,7 @@ docker-compose logs web --tail=50
 docker-compose down && docker-compose up -d
 
 # 7. Check web server is responding
-curl http://localhost:8000/
+curl http://localhost:3000/
 ```
 
 ### Manual Login Test (No Docker)
@@ -272,10 +272,10 @@ If running locally without Docker:
 source venv/bin/activate
 
 # 2. Start server
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m uvicorn app.main:app --host 0.0.0.0 --port 3000 --reload
 
 # 3. In another terminal, test
-curl -X POST http://localhost:8000/api/auth/login \
+curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"Admin123456!"}'
 ```

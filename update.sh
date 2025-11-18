@@ -17,4 +17,4 @@ echo -e "${BLUE}→ Restarting containers...${NC}"
 docker-compose restart
 
 echo -e "${GREEN}✓ Update completed!${NC}"
-echo -e "${BLUE}→ Panel: http://localhost:8000${NC}"
+echo -e "${BLUE}→ Panel: http://localhost:3000${NC}"

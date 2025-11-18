@@ -41,7 +41,7 @@ Starting application...
 ==========================================
 
 Login credentials:
-  URL: http://localhost:8000/login
+  URL: http://localhost:3000/login
   Username: admin
   Password: Admin123456!
 ==========================================
@@ -95,7 +95,7 @@ ls -lh data/c2panel.db
 
 ### 3. Попробовать войти
 
-Откройте: http://localhost:8000/login
+Откройте: http://localhost:3000/login
 
 ```
 Username: admin
@@ -105,7 +105,7 @@ Password: Admin123456!
 ### 4. Тест через API
 
 ```bash
-curl -X POST http://localhost:8000/api/auth/login \
+curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"Admin123456!"}'
 ```
@@ -232,7 +232,7 @@ bash -n entrypoint.sh
 
 После успешного запуска:
 
-1. ✅ Войдите на http://localhost:8000/login
+1. ✅ Войдите на http://localhost:3000/login
 2. ✅ Используйте `admin` / `Admin123456!`
 3. ⚠️ **Смените пароль после первого входа!**
 4. 📖 Изучите `INITIALIZATION.md` для деталей
