@@ -1,0 +1,43 @@
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    curl \
+    git \
+    bash \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Test gsocket download - with more verbose output
+RUN echo "=== Starting gsocket installation ===" && \
+    ARCH=$(uname -m) && \
+    echo "Architecture detected: $ARCH" && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        GSOCKET_URL="https://github.com/hackerschoice/gsocket/releases/latest/download/gsocket_1.4.43_linux-x86_64.tar.gz"; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        GSOCKET_URL="https://github.com/hackerschoice/gsocket/releases/latest/download/gsocket_1.4.43_linux-aarch64.tar.gz"; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi && \
+    echo "Downloading from: $GSOCKET_URL" && \
+    curl -fsSL "$GSOCKET_URL" -o /tmp/gsocket.tar.gz && \
+    echo "Download complete, file size:" && \
+    ls -lh /tmp/gsocket.tar.gz && \
+    echo "Extracting..." && \
+    tar -xzf /tmp/gsocket.tar.gz -C /tmp && \
+    echo "Contents of /tmp after extraction:" && \
+    ls -la /tmp/ && \
+    echo "Moving binaries..." && \
+    mv /tmp/gsocket_*_linux-*/bin/* /usr/local/bin/ && \
+    chmod +x /usr/local/bin/gs-* && \
+    rm -rf /tmp/gsocket* && \
+    echo "Verifying installation..." && \
+    which gs-netcat && \
+    gs-netcat -h | head -5 && \
+    echo "=== gsocket installation complete ==="
+
+CMD ["bash"]
